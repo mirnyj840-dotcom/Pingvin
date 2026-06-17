@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { View } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +7,7 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import Svg, { Circle, Ellipse, Path, Rect, G } from "react-native-svg";
 
 export type MascotType = "penguin" | "raccoon" | "bear";
 
@@ -17,147 +17,270 @@ interface MascotProps {
   animated?: boolean;
 }
 
-function Penguin({ s }: { s: number }) {
+function PenguinSVG({ size }: { size: number }) {
   return (
-    <View style={{ width: s, height: s, position: "relative" }}>
+    <Svg viewBox="0 0 100 120" width={size} height={size}>
+      {/* Drop shadow */}
+      <Ellipse cx="50" cy="118" rx="24" ry="4" fill="#000" fillOpacity={0.13} />
+
       {/* Body */}
-      <View style={{ position: "absolute", width: s * 0.54, height: s * 0.56, borderRadius: s * 0.27, backgroundColor: "#1e3a5f", left: s * 0.23, top: s * 0.36 }} />
+      <Ellipse cx="50" cy="87" rx="27" ry="31" fill="#1a2744" />
+
       {/* Belly */}
-      <View style={{ position: "absolute", width: s * 0.34, height: s * 0.40, borderRadius: s * 0.20, backgroundColor: "#dbeafe", left: s * 0.33, top: s * 0.46 }} />
-      {/* Head */}
-      <View style={{ position: "absolute", width: s * 0.52, height: s * 0.52, borderRadius: s * 0.26, backgroundColor: "#1e3a5f", left: s * 0.24, top: s * 0.04 }} />
-      {/* Left eye white */}
-      <View style={{ position: "absolute", width: s * 0.155, height: s * 0.155, borderRadius: s * 0.078, backgroundColor: "white", left: s * 0.305, top: s * 0.13 }} />
-      {/* Right eye white */}
-      <View style={{ position: "absolute", width: s * 0.155, height: s * 0.155, borderRadius: s * 0.078, backgroundColor: "white", left: s * 0.540, top: s * 0.13 }} />
-      {/* Left pupil */}
-      <View style={{ position: "absolute", width: s * 0.090, height: s * 0.090, borderRadius: s * 0.045, backgroundColor: "#0f172a", left: s * 0.338, top: s * 0.158 }} />
-      {/* Right pupil */}
-      <View style={{ position: "absolute", width: s * 0.090, height: s * 0.090, borderRadius: s * 0.045, backgroundColor: "#0f172a", left: s * 0.573, top: s * 0.158 }} />
-      {/* Eye shine left */}
-      <View style={{ position: "absolute", width: s * 0.040, height: s * 0.040, borderRadius: s * 0.020, backgroundColor: "white", left: s * 0.348, top: s * 0.148 }} />
-      {/* Eye shine right */}
-      <View style={{ position: "absolute", width: s * 0.040, height: s * 0.040, borderRadius: s * 0.020, backgroundColor: "white", left: s * 0.583, top: s * 0.148 }} />
-      {/* Beak */}
-      <View style={{ position: "absolute", width: s * 0.20, height: s * 0.11, borderRadius: s * 0.055, backgroundColor: "#f59e0b", left: s * 0.40, top: s * 0.308 }} />
-      {/* Cheek left */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.09, borderRadius: s * 0.065, backgroundColor: "#fda4af", opacity: 0.65, left: s * 0.245, top: s * 0.235 }} />
-      {/* Cheek right */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.09, borderRadius: s * 0.065, backgroundColor: "#fda4af", opacity: 0.65, left: s * 0.62, top: s * 0.235 }} />
+      <Ellipse cx="50" cy="92" rx="16" ry="22" fill="#dbeafe" />
+
       {/* Left wing */}
-      <View style={{ position: "absolute", width: s * 0.175, height: s * 0.295, borderRadius: s * 0.088, backgroundColor: "#1e3a5f", left: s * 0.06, top: s * 0.45, transform: [{ rotate: "-18deg" }] }} />
+      <Ellipse
+        cx="19" cy="85" rx="8.5" ry="17"
+        fill="#121e33"
+        transform="rotate(-22, 19, 85)"
+      />
       {/* Right wing */}
-      <View style={{ position: "absolute", width: s * 0.175, height: s * 0.295, borderRadius: s * 0.088, backgroundColor: "#1e3a5f", left: s * 0.765, top: s * 0.45, transform: [{ rotate: "18deg" }] }} />
+      <Ellipse
+        cx="81" cy="85" rx="8.5" ry="17"
+        fill="#121e33"
+        transform="rotate(22, 81, 85)"
+      />
+
+      {/* Head */}
+      <Circle cx="50" cy="38" r="27" fill="#1a2744" />
+
+      {/* Scarf — fun detail */}
+      <Ellipse cx="50" cy="64" rx="20" ry="5.5" fill="#ef4444" />
+      <Ellipse cx="50" cy="64" rx="20" ry="5.5" fill="none" stroke="#b91c1c" strokeWidth="0.8" />
+      <Rect x="47" y="62" width="6" height="9" rx="2" fill="#ef4444" />
+      <Rect x="47.5" y="62.5" width="5" height="8" rx="1.5" fill="#dc2626" />
+
+      {/* Left eye white */}
+      <Circle cx="37" cy="33" r="10.5" fill="white" />
+      {/* Right eye white */}
+      <Circle cx="63" cy="33" r="10.5" fill="white" />
+
+      {/* Left pupil (slightly inward = cute cross-eyed) */}
+      <Circle cx="40" cy="35" r="6.2" fill="#0d1117" />
+      {/* Right pupil */}
+      <Circle cx="60" cy="35" r="6.2" fill="#0d1117" />
+
+      {/* Left eye shine */}
+      <Circle cx="38" cy="31.5" r="2.8" fill="white" />
+      {/* Right eye shine */}
+      <Circle cx="58" cy="31.5" r="2.8" fill="white" />
+
+      {/* Left cheek blush */}
+      <Ellipse cx="29" cy="45" rx="7.5" ry="5.5" fill="#fda4af" fillOpacity={0.8} />
+      {/* Right cheek blush */}
+      <Ellipse cx="71" cy="45" rx="7.5" ry="5.5" fill="#fda4af" fillOpacity={0.8} />
+
+      {/* Beak */}
+      <Ellipse cx="50" cy="49" rx="9" ry="5.5" fill="#f59e0b" />
+      <Ellipse cx="50" cy="50.5" rx="7" ry="3" fill="#d97706" />
+
+      {/* Smile */}
+      <Path
+        d="M 43 57 Q 50 64 57 57"
+        stroke="#dbeafe"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+
       {/* Left foot */}
-      <View style={{ position: "absolute", width: s * 0.22, height: s * 0.10, borderRadius: s * 0.05, backgroundColor: "#f59e0b", left: s * 0.21, top: s * 0.875 }} />
+      <Ellipse cx="37" cy="116" rx="12" ry="5" fill="#f59e0b" />
       {/* Right foot */}
-      <View style={{ position: "absolute", width: s * 0.22, height: s * 0.10, borderRadius: s * 0.05, backgroundColor: "#f59e0b", left: s * 0.57, top: s * 0.875 }} />
-    </View>
+      <Ellipse cx="63" cy="116" rx="12" ry="5" fill="#f59e0b" />
+    </Svg>
   );
 }
 
-function Raccoon({ s }: { s: number }) {
+function RaccoonSVG({ size }: { size: number }) {
   return (
-    <View style={{ width: s, height: s, position: "relative" }}>
+    <Svg viewBox="0 0 100 120" width={size} height={size}>
+      {/* Shadow */}
+      <Ellipse cx="50" cy="118" rx="24" ry="4" fill="#000" fillOpacity={0.13} />
+
+      {/* Tail behind body */}
+      <Ellipse
+        cx="80" cy="92" rx="8" ry="21"
+        fill="#9ca3af"
+        transform="rotate(12, 80, 92)"
+      />
+      <Ellipse
+        cx="82" cy="81" rx="5" ry="6.5"
+        fill="#374151"
+        transform="rotate(12, 82, 81)"
+      />
+      <Ellipse
+        cx="81" cy="93" rx="5" ry="6"
+        fill="#374151"
+        transform="rotate(12, 81, 93)"
+      />
+      <Ellipse
+        cx="80" cy="104" rx="4.5" ry="5.5"
+        fill="#374151"
+        transform="rotate(12, 80, 104)"
+      />
+
       {/* Body */}
-      <View style={{ position: "absolute", width: s * 0.52, height: s * 0.52, borderRadius: s * 0.26, backgroundColor: "#9ca3af", left: s * 0.24, top: s * 0.36 }} />
+      <Ellipse cx="50" cy="87" rx="26" ry="30" fill="#9ca3af" />
       {/* Belly */}
-      <View style={{ position: "absolute", width: s * 0.32, height: s * 0.34, borderRadius: s * 0.17, backgroundColor: "#f3f4f6", left: s * 0.34, top: s * 0.46 }} />
+      <Ellipse cx="50" cy="92" rx="15" ry="21" fill="#f3f4f6" />
+
+      {/* Left arm */}
+      <Ellipse
+        cx="20" cy="86" rx="7.5" ry="16"
+        fill="#9ca3af"
+        transform="rotate(-15, 20, 86)"
+      />
+      {/* Right arm */}
+      <Ellipse
+        cx="80" cy="86" rx="7.5" ry="16"
+        fill="#9ca3af"
+        transform="rotate(15, 80, 86)"
+      />
+
       {/* Head */}
-      <View style={{ position: "absolute", width: s * 0.54, height: s * 0.52, borderRadius: s * 0.27, backgroundColor: "#9ca3af", left: s * 0.23, top: s * 0.06 }} />
+      <Ellipse cx="50" cy="39" rx="27" ry="27" fill="#9ca3af" />
+
       {/* Left ear */}
-      <View style={{ position: "absolute", width: s * 0.18, height: s * 0.22, borderRadius: s * 0.09, backgroundColor: "#9ca3af", left: s * 0.21, top: s * 0.02 }} />
+      <Ellipse cx="29" cy="16" rx="10.5" ry="13" fill="#9ca3af" />
       {/* Right ear */}
-      <View style={{ position: "absolute", width: s * 0.18, height: s * 0.22, borderRadius: s * 0.09, backgroundColor: "#9ca3af", left: s * 0.61, top: s * 0.02 }} />
-      {/* Ear inner left */}
-      <View style={{ position: "absolute", width: s * 0.10, height: s * 0.13, borderRadius: s * 0.065, backgroundColor: "#e0d7f5", left: s * 0.25, top: s * 0.055 }} />
-      {/* Ear inner right */}
-      <View style={{ position: "absolute", width: s * 0.10, height: s * 0.13, borderRadius: s * 0.065, backgroundColor: "#e0d7f5", left: s * 0.65, top: s * 0.055 }} />
-      {/* Eye mask dark band */}
-      <View style={{ position: "absolute", width: s * 0.50, height: s * 0.175, borderRadius: s * 0.088, backgroundColor: "#374151", left: s * 0.25, top: s * 0.195 }} />
+      <Ellipse cx="71" cy="16" rx="10.5" ry="13" fill="#9ca3af" />
+      {/* Left ear inner */}
+      <Ellipse cx="29" cy="17" rx="6" ry="8" fill="#ede9fe" />
+      {/* Right ear inner */}
+      <Ellipse cx="71" cy="17" rx="6" ry="8" fill="#ede9fe" />
+
+      {/* Eye mask */}
+      <Rect x="22" y="26" width="56" height="20" rx="10" fill="#374151" />
+
       {/* Left eye white */}
-      <View style={{ position: "absolute", width: s * 0.145, height: s * 0.145, borderRadius: s * 0.073, backgroundColor: "white", left: s * 0.305, top: s * 0.170 }} />
+      <Circle cx="37" cy="35" r="9.5" fill="white" />
       {/* Right eye white */}
-      <View style={{ position: "absolute", width: s * 0.145, height: s * 0.145, borderRadius: s * 0.073, backgroundColor: "white", left: s * 0.550, top: s * 0.170 }} />
+      <Circle cx="63" cy="35" r="9.5" fill="white" />
+
       {/* Left pupil */}
-      <View style={{ position: "absolute", width: s * 0.082, height: s * 0.082, borderRadius: s * 0.041, backgroundColor: "#111827", left: s * 0.338, top: s * 0.204 }} />
+      <Circle cx="40" cy="37" r="5.8" fill="#0d1117" />
       {/* Right pupil */}
-      <View style={{ position: "absolute", width: s * 0.082, height: s * 0.082, borderRadius: s * 0.041, backgroundColor: "#111827", left: s * 0.583, top: s * 0.204 }} />
-      {/* Eye shine left */}
-      <View style={{ position: "absolute", width: s * 0.036, height: s * 0.036, borderRadius: s * 0.018, backgroundColor: "white", left: s * 0.348, top: s * 0.194 }} />
-      {/* Eye shine right */}
-      <View style={{ position: "absolute", width: s * 0.036, height: s * 0.036, borderRadius: s * 0.018, backgroundColor: "white", left: s * 0.593, top: s * 0.194 }} />
+      <Circle cx="60" cy="37" r="5.8" fill="#0d1117" />
+
+      {/* Left eye shine */}
+      <Circle cx="38" cy="33.5" r="2.6" fill="white" />
+      {/* Right eye shine */}
+      <Circle cx="58" cy="33.5" r="2.6" fill="white" />
+
       {/* Snout */}
-      <View style={{ position: "absolute", width: s * 0.30, height: s * 0.20, borderRadius: s * 0.15, backgroundColor: "#d1d5db", left: s * 0.35, top: s * 0.33 }} />
+      <Ellipse cx="50" cy="51" rx="13.5" ry="9.5" fill="#d1d5db" />
+
       {/* Nose */}
-      <View style={{ position: "absolute", width: s * 0.125, height: s * 0.088, borderRadius: s * 0.044, backgroundColor: "#374151", left: s * 0.438, top: s * 0.338 }} />
-      {/* Cheek left */}
-      <View style={{ position: "absolute", width: s * 0.11, height: s * 0.08, borderRadius: s * 0.055, backgroundColor: "#fda4af", opacity: 0.55, left: s * 0.255, top: s * 0.296 }} />
-      {/* Cheek right */}
-      <View style={{ position: "absolute", width: s * 0.11, height: s * 0.08, borderRadius: s * 0.055, backgroundColor: "#fda4af", opacity: 0.55, left: s * 0.635, top: s * 0.296 }} />
-      {/* Left arm */}
-      <View style={{ position: "absolute", width: s * 0.16, height: s * 0.27, borderRadius: s * 0.08, backgroundColor: "#9ca3af", left: s * 0.07, top: s * 0.46, transform: [{ rotate: "-15deg" }] }} />
-      {/* Right arm */}
-      <View style={{ position: "absolute", width: s * 0.16, height: s * 0.27, borderRadius: s * 0.08, backgroundColor: "#9ca3af", left: s * 0.77, top: s * 0.46, transform: [{ rotate: "15deg" }] }} />
+      <Ellipse cx="50" cy="46.5" rx="5.5" ry="4" fill="#374151" />
+      {/* Nose shine */}
+      <Ellipse cx="48.5" cy="45.5" rx="1.8" ry="1.3" fill="#6b7280" />
+
+      {/* Left cheek */}
+      <Ellipse cx="28" cy="52" rx="7.5" ry="5.5" fill="#fda4af" fillOpacity={0.7} />
+      {/* Right cheek */}
+      <Ellipse cx="72" cy="52" rx="7.5" ry="5.5" fill="#fda4af" fillOpacity={0.7} />
+
+      {/* Smile */}
+      <Path
+        d="M 43 58 Q 50 65 57 58"
+        stroke="#9ca3af"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+
       {/* Left foot */}
-      <View style={{ position: "absolute", width: s * 0.20, height: s * 0.10, borderRadius: s * 0.05, backgroundColor: "#6b7280", left: s * 0.24, top: s * 0.87 }} />
+      <Ellipse cx="38" cy="115" rx="11.5" ry="5" fill="#6b7280" />
       {/* Right foot */}
-      <View style={{ position: "absolute", width: s * 0.20, height: s * 0.10, borderRadius: s * 0.05, backgroundColor: "#6b7280", left: s * 0.56, top: s * 0.87 }} />
-      {/* Tail */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.36, borderRadius: s * 0.065, backgroundColor: "#9ca3af", right: s * 0.01, top: s * 0.47 }} />
-      <View style={{ position: "absolute", width: s * 0.09, height: s * 0.065, borderRadius: s * 0.03, backgroundColor: "#374151", right: s * 0.03, top: s * 0.52 }} />
-      <View style={{ position: "absolute", width: s * 0.09, height: s * 0.065, borderRadius: s * 0.03, backgroundColor: "#374151", right: s * 0.03, top: s * 0.625 }} />
-      <View style={{ position: "absolute", width: s * 0.09, height: s * 0.065, borderRadius: s * 0.03, backgroundColor: "#374151", right: s * 0.03, top: s * 0.73 }} />
-    </View>
+      <Ellipse cx="62" cy="115" rx="11.5" ry="5" fill="#6b7280" />
+    </Svg>
   );
 }
 
-function Bear({ s }: { s: number }) {
+function BearSVG({ size }: { size: number }) {
   return (
-    <View style={{ width: s, height: s, position: "relative" }}>
+    <Svg viewBox="0 0 100 120" width={size} height={size}>
+      {/* Shadow */}
+      <Ellipse cx="50" cy="118" rx="24" ry="4" fill="#000" fillOpacity={0.13} />
+
       {/* Body */}
-      <View style={{ position: "absolute", width: s * 0.54, height: s * 0.54, borderRadius: s * 0.27, backgroundColor: "#c2722a", left: s * 0.23, top: s * 0.35 }} />
+      <Ellipse cx="50" cy="87" rx="28" ry="32" fill="#c2722a" />
       {/* Belly */}
-      <View style={{ position: "absolute", width: s * 0.34, height: s * 0.37, borderRadius: s * 0.185, backgroundColor: "#e8a95c", left: s * 0.33, top: s * 0.46 }} />
-      {/* Head */}
-      <View style={{ position: "absolute", width: s * 0.58, height: s * 0.56, borderRadius: s * 0.29, backgroundColor: "#c2722a", left: s * 0.21, top: s * 0.04 }} />
-      {/* Left ear */}
-      <View style={{ position: "absolute", width: s * 0.21, height: s * 0.22, borderRadius: s * 0.11, backgroundColor: "#c2722a", left: s * 0.18, top: s * 0.01 }} />
-      {/* Right ear */}
-      <View style={{ position: "absolute", width: s * 0.21, height: s * 0.22, borderRadius: s * 0.11, backgroundColor: "#c2722a", left: s * 0.61, top: s * 0.01 }} />
-      {/* Inner ear left */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.14, borderRadius: s * 0.07, backgroundColor: "#f3c9a0", left: s * 0.22, top: s * 0.05 }} />
-      {/* Inner ear right */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.14, borderRadius: s * 0.07, backgroundColor: "#f3c9a0", left: s * 0.65, top: s * 0.05 }} />
-      {/* Muzzle */}
-      <View style={{ position: "absolute", width: s * 0.34, height: s * 0.24, borderRadius: s * 0.17, backgroundColor: "#e8a95c", left: s * 0.33, top: s * 0.32 }} />
-      {/* Left eye white */}
-      <View style={{ position: "absolute", width: s * 0.155, height: s * 0.155, borderRadius: s * 0.078, backgroundColor: "white", left: s * 0.295, top: s * 0.155 }} />
-      {/* Right eye white */}
-      <View style={{ position: "absolute", width: s * 0.155, height: s * 0.155, borderRadius: s * 0.078, backgroundColor: "white", left: s * 0.550, top: s * 0.155 }} />
-      {/* Left pupil */}
-      <View style={{ position: "absolute", width: s * 0.090, height: s * 0.090, borderRadius: s * 0.045, backgroundColor: "#1f1b18", left: s * 0.328, top: s * 0.182 }} />
-      {/* Right pupil */}
-      <View style={{ position: "absolute", width: s * 0.090, height: s * 0.090, borderRadius: s * 0.045, backgroundColor: "#1f1b18", left: s * 0.582, top: s * 0.182 }} />
-      {/* Eye shine left */}
-      <View style={{ position: "absolute", width: s * 0.042, height: s * 0.042, borderRadius: s * 0.021, backgroundColor: "white", left: s * 0.340, top: s * 0.172 }} />
-      {/* Eye shine right */}
-      <View style={{ position: "absolute", width: s * 0.042, height: s * 0.042, borderRadius: s * 0.021, backgroundColor: "white", left: s * 0.594, top: s * 0.172 }} />
-      {/* Nose */}
-      <View style={{ position: "absolute", width: s * 0.135, height: s * 0.092, borderRadius: s * 0.046, backgroundColor: "#5c3d1e", left: s * 0.433, top: s * 0.34 }} />
-      {/* Cheek left */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.09, borderRadius: s * 0.065, backgroundColor: "#fda4af", opacity: 0.55, left: s * 0.235, top: s * 0.265 }} />
-      {/* Cheek right */}
-      <View style={{ position: "absolute", width: s * 0.13, height: s * 0.09, borderRadius: s * 0.065, backgroundColor: "#fda4af", opacity: 0.55, left: s * 0.635, top: s * 0.265 }} />
+      <Ellipse cx="50" cy="92" rx="17" ry="23" fill="#fde68a" />
+
       {/* Left arm */}
-      <View style={{ position: "absolute", width: s * 0.19, height: s * 0.30, borderRadius: s * 0.095, backgroundColor: "#c2722a", left: s * 0.05, top: s * 0.46, transform: [{ rotate: "-16deg" }] }} />
+      <Ellipse
+        cx="18" cy="87" rx="9" ry="18"
+        fill="#b86020"
+        transform="rotate(-18, 18, 87)"
+      />
       {/* Right arm */}
-      <View style={{ position: "absolute", width: s * 0.19, height: s * 0.30, borderRadius: s * 0.095, backgroundColor: "#c2722a", left: s * 0.76, top: s * 0.46, transform: [{ rotate: "16deg" }] }} />
+      <Ellipse
+        cx="82" cy="87" rx="9" ry="18"
+        fill="#b86020"
+        transform="rotate(18, 82, 87)"
+      />
+
+      {/* Head */}
+      <Circle cx="50" cy="39" r="28" fill="#c2722a" />
+
+      {/* Left ear */}
+      <Circle cx="26" cy="16" r="13" fill="#c2722a" />
+      {/* Right ear */}
+      <Circle cx="74" cy="16" r="13" fill="#c2722a" />
+      {/* Left ear inner */}
+      <Circle cx="26" cy="17" r="8" fill="#fca5a5" />
+      {/* Right ear inner */}
+      <Circle cx="74" cy="17" r="8" fill="#fca5a5" />
+
+      {/* Muzzle area */}
+      <Ellipse cx="50" cy="52" rx="15" ry="11" fill="#e8a05a" />
+
+      {/* Left eye white */}
+      <Circle cx="35" cy="33" r="10" fill="white" />
+      {/* Right eye white */}
+      <Circle cx="65" cy="33" r="10" fill="white" />
+
+      {/* Left pupil */}
+      <Circle cx="38" cy="35" r="6" fill="#1c0a00" />
+      {/* Right pupil */}
+      <Circle cx="62" cy="35" r="6" fill="#1c0a00" />
+
+      {/* Left eye shine */}
+      <Circle cx="36" cy="32" r="2.8" fill="white" />
+      {/* Right eye shine */}
+      <Circle cx="60" cy="32" r="2.8" fill="white" />
+
+      {/* Honey jar — fun accessory */}
+      <Rect x="60" y="95" width="14" height="16" rx="3" fill="#fbbf24" />
+      <Rect x="60" y="93" width="14" height="5" rx="2" fill="#f59e0b" />
+      <Ellipse cx="67" cy="103" rx="3.5" ry="2.5" fill="#d97706" />
+
+      {/* Nose */}
+      <Ellipse cx="50" cy="47.5" rx="6" ry="4.5" fill="#7c2d12" />
+      {/* Nose shine */}
+      <Ellipse cx="48.5" cy="46.5" rx="2" ry="1.4" fill="#a16207" />
+
+      {/* Left cheek */}
+      <Ellipse cx="28" cy="48" rx="8" ry="6" fill="#fda4af" fillOpacity={0.72} />
+      {/* Right cheek */}
+      <Ellipse cx="72" cy="48" rx="8" ry="6" fill="#fda4af" fillOpacity={0.72} />
+
+      {/* Smile */}
+      <Path
+        d="M 43 58 Q 50 66 57 58"
+        stroke="#c2722a"
+        strokeWidth="2.8"
+        fill="none"
+        strokeLinecap="round"
+      />
+
       {/* Left foot */}
-      <View style={{ position: "absolute", width: s * 0.23, height: s * 0.11, borderRadius: s * 0.055, backgroundColor: "#a0541e", left: s * 0.21, top: s * 0.87 }} />
+      <Ellipse cx="37" cy="116" rx="13" ry="5.5" fill="#a0541e" />
       {/* Right foot */}
-      <View style={{ position: "absolute", width: s * 0.23, height: s * 0.11, borderRadius: s * 0.055, backgroundColor: "#a0541e", left: s * 0.56, top: s * 0.87 }} />
-    </View>
+      <Ellipse cx="63" cy="116" rx="13" ry="5.5" fill="#a0541e" />
+    </Svg>
   );
 }
 
@@ -172,26 +295,26 @@ export default function Mascot({
     if (!animated) return;
     translateY.value = withRepeat(
       withSequence(
-        withTiming(-9, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.sin) })
+        withTiming(-10, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.sin) })
       ),
       -1
     );
   }, [animated]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const animStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
 
-  const content =
+  const svg =
     type === "raccoon" ? (
-      <Raccoon s={size} />
+      <RaccoonSVG size={size} />
     ) : type === "bear" ? (
-      <Bear s={size} />
+      <BearSVG size={size} />
     ) : (
-      <Penguin s={size} />
+      <PenguinSVG size={size} />
     );
 
-  if (!animated) return content;
-  return <Animated.View style={animatedStyle}>{content}</Animated.View>;
+  if (!animated) return svg;
+  return <Animated.View style={animStyle}>{svg}</Animated.View>;
 }
