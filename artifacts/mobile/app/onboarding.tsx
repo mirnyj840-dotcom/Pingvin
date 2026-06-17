@@ -9,6 +9,13 @@ import {
   Dimensions,
   Platform,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -57,6 +64,7 @@ export default function OnboardingScreen() {
   const [page, setPage] = useState(0);
   const [selectedMascot, setSelectedMascot] = useState<MascotType>("penguin");
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
 
   const isLastPage = page === PAGES.length - 1;
@@ -68,6 +76,11 @@ export default function OnboardingScreen() {
       setPage(next);
       scrollRef.current?.scrollTo({ x: next * width, animated: true });
     } else {
+      if (!name.trim()) {
+        setNameError(true);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
       await finish();
     }
   };
@@ -75,7 +88,7 @@ export default function OnboardingScreen() {
   const finish = async () => {
     if (isFinishing) return;
     setIsFinishing(true);
-    await completeOnboarding(name, selectedMascot);
+    await completeOnboarding(name.trim(), selectedMascot);
     router.replace("/(tabs)");
   };
 
@@ -101,7 +114,11 @@ export default function OnboardingScreen() {
                 selectedMascot={selectedMascot}
                 onSelect={setSelectedMascot}
                 name={name}
-                onNameChange={setName}
+                onNameChange={(v) => {
+                  setName(v);
+                  if (v.trim()) setNameError(false);
+                }}
+                nameError={nameError}
                 title={p.title}
                 subtitle={p.subtitle}
               />
@@ -120,8 +137,7 @@ export default function OnboardingScreen() {
             style={[
               styles.dot,
               {
-                backgroundColor:
-                  i === page ? COLORS.primary : COLORS.border,
+                backgroundColor: i === page ? COLORS.primary : COLORS.border,
                 width: i === page ? 24 : 8,
               },
             ]}
@@ -136,6 +152,12 @@ export default function OnboardingScreen() {
           { paddingBottom: insets.bottom + 24 + (Platform.OS === "web" ? 34 : 0) },
         ]}
       >
+        {isLastPage && !name.trim() && nameError && (
+          <Animated.View style={styles.errorBanner}>
+            <Feather name="alert-circle" size={14} color="#EF4444" />
+            <Text style={styles.errorBannerText}>Введи своё имя, чтобы продолжить</Text>
+          </Animated.View>
+        )}
         <GradientButton
           label={isLastPage ? "Начать учиться" : "Далее"}
           iconName={isLastPage ? "arrow-right" : "chevron-right"}
@@ -175,6 +197,7 @@ function MascotPickerPage({
   onSelect,
   name,
   onNameChange,
+  nameError,
   title,
   subtitle,
 }: {
@@ -182,9 +205,30 @@ function MascotPickerPage({
   onSelect: (m: MascotType) => void;
   name: string;
   onNameChange: (v: string) => void;
+  nameError: boolean;
   title: string;
   subtitle: string;
 }) {
+  const shakeX = useSharedValue(0);
+
+  const shake = () => {
+    shakeX.value = withSequence(
+      withTiming(8, { duration: 60 }),
+      withTiming(-8, { duration: 60 }),
+      withTiming(8, { duration: 60 }),
+      withTiming(-8, { duration: 60 }),
+      withTiming(0, { duration: 60 })
+    );
+  };
+
+  const animatedInputStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
+
+  React.useEffect(() => {
+    if (nameError) shake();
+  }, [nameError]);
+
   return (
     <View style={styles.pageInner}>
       <Text style={styles.title}>{title}</Text>
@@ -223,16 +267,36 @@ function MascotPickerPage({
       </View>
 
       <View style={styles.nameWrap}>
-        <Text style={styles.nameLabel}>Как тебя зовут?</Text>
-        <TextInput
-          value={name}
-          onChangeText={onNameChange}
-          placeholder="Введи имя..."
-          placeholderTextColor={COLORS.mutedForeground}
-          style={styles.nameInput}
-          maxLength={24}
-          returnKeyType="done"
-        />
+        <View style={styles.nameLabelRow}>
+          <Text style={styles.nameLabel}>Как тебя зовут?</Text>
+          {nameError && (
+            <Text style={styles.nameLabelError}>Обязательное поле</Text>
+          )}
+        </View>
+        <Animated.View style={animatedInputStyle}>
+          <TextInput
+            value={name}
+            onChangeText={onNameChange}
+            placeholder="Введи имя..."
+            placeholderTextColor={COLORS.mutedForeground}
+            style={[
+              styles.nameInput,
+              nameError && !name.trim() && {
+                borderColor: "#EF4444",
+                backgroundColor: "#EF444410",
+              },
+            ]}
+            maxLength={24}
+            returnKeyType="done"
+            autoCorrect={false}
+          />
+        </Animated.View>
+        {name.trim().length > 0 && (
+          <View style={styles.namePreview}>
+            <Feather name="check-circle" size={13} color="#10B981" />
+            <Text style={styles.namePreviewText}>Привет, {name.trim()}!</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -295,6 +359,23 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingTop: 8,
+    gap: 10,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EF444415",
+    borderWidth: 1,
+    borderColor: "#EF444430",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  errorBannerText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
   },
   mascotRow: {
     flexDirection: "row",
@@ -337,11 +418,21 @@ const styles = StyleSheet.create({
     width: "100%",
     gap: 8,
   },
+  nameLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   nameLabel: {
     fontSize: 14,
     fontWeight: "600",
     color: COLORS.subForeground,
     fontFamily: "Inter_600SemiBold",
+  },
+  nameLabelError: {
+    fontSize: 12,
+    color: "#EF4444",
+    fontFamily: "Inter_500Medium",
   },
   nameInput: {
     backgroundColor: COLORS.card,
@@ -353,5 +444,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.foreground,
     fontFamily: "Inter_400Regular",
+  },
+  namePreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  namePreviewText: {
+    fontSize: 13,
+    color: "#10B981",
+    fontFamily: "Inter_500Medium",
   },
 });

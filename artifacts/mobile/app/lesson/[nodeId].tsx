@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Animated as RNAnimated,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+  withDelay,
+  Easing,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -17,6 +25,8 @@ import { useApp } from "@/contexts/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import Mascot from "@/components/Mascot";
 import GradientButton from "@/components/GradientButton";
+import CelebrationOverlay from "@/components/CelebrationOverlay";
+import VideoPlayer from "@/components/VideoPlayer";
 import { findNode } from "@/data/curriculum";
 import type { LessonResult } from "@/contexts/AppContext";
 
@@ -36,34 +46,44 @@ export default function LessonScreen() {
   const [confirmed, setConfirmed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [result, setResult] = useState<LessonResult | null>(null);
-  const shakeAnim = useRef(new RNAnimated.Value(0)).current;
+
+  const shakeAnim = useSharedValue(0);
+  const optionScale = useSharedValue(1);
+  const progressAnim = useSharedValue(0);
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
 
-  if (!node) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.foreground }]}>
-          Урок не найден
-        </Text>
-      </View>
-    );
-  }
-
-  const questions = node.questions || [];
-  const isTheory = node.type === "theory";
+  const questions = node?.questions || [];
+  const isTheory = node?.type === "theory";
   const currentQ = questions[questionIdx];
   const totalQ = questions.length;
-  const progress = totalQ > 0 ? (questionIdx + 1) / totalQ : 0;
+
+  useEffect(() => {
+    if (totalQ > 0) {
+      progressAnim.value = withTiming((questionIdx + 1) / totalQ, {
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+      });
+    }
+  }, [questionIdx, totalQ]);
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value * 100}%`,
+  }));
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeAnim.value }],
+  }));
 
   const shake = () => {
-    RNAnimated.sequence([
-      RNAnimated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-    ]).start();
+    shakeAnim.value = withSequence(
+      withTiming(10, { duration: 55 }),
+      withTiming(-10, { duration: 55 }),
+      withTiming(10, { duration: 55 }),
+      withTiming(-10, { duration: 55 }),
+      withTiming(0, { duration: 55 })
+    );
   };
 
   const handleCheck = async () => {
@@ -72,9 +92,13 @@ export default function LessonScreen() {
     setConfirmed(true);
     if (selected === currentQ.correct) {
       setCorrectCount((c) => c + 1);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } else {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
       shake();
     }
   };
@@ -85,14 +109,17 @@ export default function LessonScreen() {
       setSelected(null);
       setConfirmed(false);
     } else {
-      const res = await completeNode(nodeId, correctCount + (selected === currentQ.correct ? 1 : 0), totalQ);
+      const finalCorrect = correctCount + (selected === currentQ?.correct ? 1 : 0);
+      const res = await completeNode(nodeId, finalCorrect, totalQ);
       setResult(res);
       setScreen("result");
     }
   };
 
   const handleFinishTheory = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     const res = await completeNode(nodeId, 0, 0);
     setResult(res);
     setScreen("result");
@@ -100,19 +127,19 @@ export default function LessonScreen() {
 
   const handleStartQuiz = () => {
     setScreen("question");
+    progressAnim.value = withTiming(1 / Math.max(totalQ, 1), {
+      duration: 400,
+      easing: Easing.out(Easing.quad),
+    });
   };
 
-  if (screen === "result" && result) {
+  if (!node) {
     return (
-      <ResultScreen
-        node={node}
-        result={result}
-        colors={colors}
-        settings={settings}
-        pt={pt}
-        pb={pb}
-        onClose={() => router.back()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.foreground }]}>
+          Урок не найден
+        </Text>
+      </View>
     );
   }
 
@@ -125,10 +152,11 @@ export default function LessonScreen() {
         </TouchableOpacity>
         {!isTheory && screen === "question" && (
           <View style={[styles.progressBar, { backgroundColor: colors.track }]}>
-            <View
+            <Animated.View
               style={[
                 styles.progressFill,
-                { backgroundColor: colors.primary, width: `${progress * 100}%` },
+                { backgroundColor: colors.primary },
+                progressStyle,
               ]}
             />
           </View>
@@ -158,9 +186,7 @@ export default function LessonScreen() {
       )}
 
       {screen === "question" && currentQ && (
-        <RNAnimated.View
-          style={[styles.flex, { transform: [{ translateX: shakeAnim }] }]}
-        >
+        <Animated.View style={[styles.flex, shakeStyle]}>
           <ScrollView
             contentContainerStyle={[styles.questionContent, { paddingBottom: pb + 20 }]}
             showsVerticalScrollIndicator={false}
@@ -173,7 +199,7 @@ export default function LessonScreen() {
             </Text>
 
             <View style={styles.optionsContainer}>
-              {currentQ.options.map((opt) => {
+              {currentQ.options.map((opt, oi) => {
                 const isSelected = selected === opt;
                 const isCorrect = opt === currentQ.correct;
                 let borderColor = colors.border;
@@ -197,63 +223,35 @@ export default function LessonScreen() {
                 }
 
                 return (
-                  <TouchableOpacity
+                  <OptionButton
                     key={opt}
+                    opt={opt}
+                    index={oi}
+                    bg={bg}
+                    borderColor={borderColor}
+                    textColor={textColor}
+                    confirmed={confirmed}
+                    isCorrect={isCorrect}
+                    isSelected={isSelected}
+                    colors={colors}
                     onPress={() => {
                       if (confirmed) return;
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (Platform.OS !== "web") {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
                       setSelected(opt);
                     }}
-                    style={[
-                      styles.option,
-                      { backgroundColor: bg, borderColor, borderWidth: isSelected || (confirmed && isCorrect) ? 2 : 1.5 },
-                    ]}
-                  >
-                    <Text style={[styles.optionText, { color: textColor }]}>{opt}</Text>
-                    {confirmed && isCorrect && (
-                      <Feather name="check-circle" size={18} color={colors.green} />
-                    )}
-                    {confirmed && isSelected && !isCorrect && (
-                      <Feather name="x-circle" size={18} color={colors.red} />
-                    )}
-                  </TouchableOpacity>
+                  />
                 );
               })}
             </View>
 
             {confirmed && currentQ.explanation && (
-              <View
-                style={[
-                  styles.explanation,
-                  {
-                    backgroundColor:
-                      selected === currentQ.correct
-                        ? colors.green + "15"
-                        : colors.red + "15",
-                    borderColor:
-                      selected === currentQ.correct ? colors.green : colors.red,
-                  },
-                ]}
-              >
-                <Feather
-                  name="info"
-                  size={14}
-                  color={
-                    selected === currentQ.correct ? colors.green : colors.red
-                  }
-                />
-                <Text
-                  style={[
-                    styles.explanationText,
-                    {
-                      color:
-                        selected === currentQ.correct ? colors.green : colors.red,
-                    },
-                  ]}
-                >
-                  {currentQ.explanation}
-                </Text>
-              </View>
+              <ExplanationCard
+                explanation={currentQ.explanation}
+                isCorrect={selected === currentQ.correct}
+                colors={colors}
+              />
             )}
           </ScrollView>
 
@@ -274,9 +272,91 @@ export default function LessonScreen() {
               />
             )}
           </View>
-        </RNAnimated.View>
+        </Animated.View>
+      )}
+
+      {screen === "result" && result && (
+        <CelebrationOverlay
+          passed={result.passed}
+          isTheory={isTheory}
+          xpEarned={result.xpEarned}
+          correct={result.correct}
+          total={result.total}
+          alreadyDone={result.alreadyDone}
+          mascot={settings.mascot}
+          onContinue={() => router.back()}
+        />
       )}
     </View>
+  );
+}
+
+function OptionButton({
+  opt,
+  index,
+  bg,
+  borderColor,
+  textColor,
+  confirmed,
+  isCorrect,
+  isSelected,
+  colors,
+  onPress,
+}: {
+  opt: string;
+  index: number;
+  bg: string;
+  borderColor: string;
+  textColor: string;
+  confirmed: boolean;
+  isCorrect: boolean;
+  isSelected: boolean;
+  colors: ReturnType<typeof useAppColors>;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(index * 60, withTiming(1, { duration: 200 }));
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <TouchableOpacity
+        onPress={() => {
+          if (!confirmed) {
+            scale.value = withSequence(
+              withTiming(0.96, { duration: 80 }),
+              withSpring(1, { damping: 10, stiffness: 200 })
+            );
+          }
+          onPress();
+        }}
+        style={[
+          styles.option,
+          {
+            backgroundColor: bg,
+            borderColor,
+            borderWidth: isSelected || (confirmed && isCorrect) ? 2 : 1.5,
+          },
+        ]}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.optionText, { color: textColor }]}>{opt}</Text>
+        {confirmed && isCorrect && (
+          <Feather name="check-circle" size={18} color={colors.green} />
+        )}
+        {confirmed && isSelected && !isCorrect && (
+          <Feather name="x-circle" size={18} color={colors.red} />
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -308,6 +388,9 @@ function TheoryContent({
           <Feather name="book-open" size={28} color="white" />
           <Text style={styles.theoryBannerTitle}>{node.theoryTitle}</Text>
         </LinearGradient>
+
+        {/* Video player section */}
+        <VideoPlayer videoUrl={node.videoUrl} title={node.theoryTitle} />
 
         <Text style={[styles.theoryText, { color: colors.subForeground }]}>
           {node.theoryContent}
@@ -358,6 +441,20 @@ function QuizIntro({
   onStart: () => void;
 }) {
   if (!node) return null;
+
+  const mascotScale = useSharedValue(0);
+  const contentOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    mascotScale.value = withSpring(1, { damping: 10, stiffness: 160 });
+    contentOpacity.value = withDelay(200, withTiming(1, { duration: 350 }));
+  }, []);
+
+  const mascotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: mascotScale.value }],
+  }));
+  const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
+
   const typeLabel =
     node.type === "boss"
       ? "Босс-битва!"
@@ -371,153 +468,106 @@ function QuizIntro({
 
   return (
     <View style={[styles.flex, styles.introContent]}>
-      <Mascot type={settings.mascot} size={120} animated />
-      <Text style={[styles.introType, { color: colors.primary }]}>
-        {typeLabel}
-      </Text>
-      <Text style={[styles.introDesc, { color: colors.subForeground }]}>
-        {typeDesc}
-      </Text>
-      <View
-        style={[
-          styles.introStats,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <View style={styles.introStat}>
-          <Feather name="help-circle" size={18} color={colors.primary} />
-          <Text style={[styles.introStatValue, { color: colors.foreground }]}>
-            {(node.questions || []).length}
-          </Text>
-          <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
-            вопросов
-          </Text>
+      <Animated.View style={mascotStyle}>
+        <Mascot type={settings.mascot} size={120} animated />
+      </Animated.View>
+      <Animated.View style={[styles.introTextWrap, contentStyle]}>
+        <Text style={[styles.introType, { color: colors.primary }]}>{typeLabel}</Text>
+        <Text style={[styles.introDesc, { color: colors.subForeground }]}>{typeDesc}</Text>
+        <View
+          style={[
+            styles.introStats,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.introStat}>
+            <Feather name="help-circle" size={18} color={colors.primary} />
+            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
+              {(node.questions || []).length}
+            </Text>
+            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+              вопросов
+            </Text>
+          </View>
+          <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.introStat}>
+            <Feather name="zap" size={18} color={colors.amber} />
+            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
+              {node.xpReward}
+            </Text>
+            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+              XP
+            </Text>
+          </View>
+          <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.introStat}>
+            <Feather name="target" size={18} color={colors.green} />
+            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
+              60%
+            </Text>
+            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+              для прохода
+            </Text>
+          </View>
         </View>
-        <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.introStat}>
-          <Feather name="zap" size={18} color={colors.amber} />
-          <Text style={[styles.introStatValue, { color: colors.foreground }]}>
-            {node.xpReward}
-          </Text>
-          <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
-            XP
-          </Text>
+        <View style={[styles.actionBar, { paddingBottom: pb + 16, width: "100%" }]}>
+          <GradientButton
+            label="Начать"
+            iconName="play"
+            onPress={onStart}
+            variant={node.type === "boss" ? "danger" : "primary"}
+          />
         </View>
-        <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.introStat}>
-          <Feather name="target" size={18} color={colors.green} />
-          <Text style={[styles.introStatValue, { color: colors.foreground }]}>
-            60%
-          </Text>
-          <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
-            чтобы пройти
-          </Text>
-        </View>
-      </View>
-      <View style={[styles.actionBar, { paddingBottom: pb + 16 }]}>
-        <GradientButton
-          label="Начать"
-          iconName="play"
-          onPress={onStart}
-          variant={node.type === "boss" ? "danger" : "primary"}
-        />
-      </View>
+      </Animated.View>
     </View>
   );
 }
 
-function ResultScreen({
-  node,
-  result,
+function ExplanationCard({
+  explanation,
+  isCorrect,
   colors,
-  settings,
-  pt,
-  pb,
-  onClose,
 }: {
-  node: ReturnType<typeof findNode>;
-  result: LessonResult;
+  explanation: string;
+  isCorrect: boolean;
   colors: ReturnType<typeof useAppColors>;
-  settings: { mascot: MascotType };
-  pt: number;
-  pb: number;
-  onClose: () => void;
 }) {
-  if (!node) return null;
-  const isPassed = result.passed;
-  const isTheory = node.type === "theory";
+  const scale = useSharedValue(0.85);
+  const opacity = useSharedValue(0);
 
-  const title = isTheory
-    ? "Отличная работа!"
-    : isPassed
-    ? "Пройдено!"
-    : "Почти!";
-  const subtitle = isTheory
-    ? "Теория усвоена. Продолжай!"
-    : isPassed
-    ? `${result.correct} из ${result.total} правильно`
-    : `${result.correct} из ${result.total} — попробуй ещё`;
+  useEffect(() => {
+    scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+    opacity.value = withTiming(1, { duration: 200 });
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.resultContent, { paddingTop: pt + 20, paddingBottom: pb + 20 }]}>
-        <Mascot type={settings.mascot} size={120} animated />
-
-        <View
-          style={[
-            styles.resultBadge,
-            {
-              backgroundColor: isPassed
-                ? colors.green + "15"
-                : colors.amber + "15",
-              borderColor: isPassed ? colors.green + "35" : colors.amber + "35",
-            },
-          ]}
+    <Animated.View style={style}>
+      <View
+        style={[
+          styles.explanation,
+          {
+            backgroundColor: isCorrect ? colors.green + "15" : colors.red + "15",
+            borderColor: isCorrect ? colors.green : colors.red,
+          },
+        ]}
+      >
+        <Feather
+          name={isCorrect ? "check-circle" : "info"}
+          size={15}
+          color={isCorrect ? colors.green : colors.red}
+        />
+        <Text
+          style={[styles.explanationText, { color: isCorrect ? colors.green : colors.red }]}
         >
-          <Feather
-            name={isPassed ? "check-circle" : "alert-circle"}
-            size={28}
-            color={isPassed ? colors.green : colors.amber}
-          />
-          <Text
-            style={[
-              styles.resultTitle,
-              { color: isPassed ? colors.green : colors.amber },
-            ]}
-          >
-            {title}
-          </Text>
-          <Text
-            style={[styles.resultSubtitle, { color: colors.subForeground }]}
-          >
-            {subtitle}
-          </Text>
-        </View>
-
-        {!result.alreadyDone && result.xpEarned > 0 && (
-          <View
-            style={[
-              styles.xpEarned,
-              { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" },
-            ]}
-          >
-            <Feather name="zap" size={20} color={colors.primary} />
-            <Text style={[styles.xpEarnedText, { color: colors.primary }]}>
-              +{result.xpEarned} XP
-            </Text>
-          </View>
-        )}
-
-        <View style={{ width: "100%", marginTop: "auto" }}>
-          <GradientButton
-            label="Назад к пути"
-            iconName="map"
-            onPress={onClose}
-            variant={isPassed ? "success" : "primary"}
-          />
-        </View>
+          {explanation}
+        </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -628,7 +678,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     gap: 16,
-    paddingTop: 20,
+    paddingTop: 24,
+  },
+  introTextWrap: {
+    width: "100%",
+    alignItems: "center",
+    gap: 12,
   },
   introType: {
     fontSize: 28,
@@ -648,7 +703,7 @@ const styles = StyleSheet.create({
     padding: 16,
     width: "100%",
     justifyContent: "space-around",
-    marginTop: 8,
+    marginTop: 4,
   },
   introStat: { alignItems: "center", gap: 4 },
   introStatValue: {
@@ -658,38 +713,4 @@ const styles = StyleSheet.create({
   },
   introStatLabel: { fontSize: 12 },
   introStatDivider: { width: 1, alignSelf: "stretch" },
-  resultContent: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  resultBadge: {
-    width: "100%",
-    alignItems: "center",
-    padding: 24,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 8,
-  },
-  resultTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    fontFamily: "Inter_700Bold",
-  },
-  resultSubtitle: { fontSize: 16 },
-  xpEarned: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 40,
-    borderWidth: 1,
-  },
-  xpEarnedText: {
-    fontSize: 22,
-    fontWeight: "800",
-    fontFamily: "Inter_700Bold",
-  },
 });

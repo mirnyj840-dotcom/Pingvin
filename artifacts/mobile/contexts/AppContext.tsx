@@ -137,7 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ): Promise<void> {
     const newStats = {
       ...userStats,
-      name: name.trim() || "Ученик",
+      name: name.trim(),
       onboardingDone: true,
     };
     const newSettings = { ...settings, mascot };

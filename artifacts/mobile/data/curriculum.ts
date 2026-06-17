@@ -17,6 +17,7 @@ export interface LessonNode {
   theoryTitle?: string;
   theoryContent?: string;
   theoryKeyPoints?: string[];
+  videoUrl?: string;
   questions?: Question[];
   xpReward: number;
 }
