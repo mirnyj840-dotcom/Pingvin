@@ -226,7 +226,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else if (newXp >= 700) newLeague = 3;
     else if (newXp >= 300) newLeague = 2;
 
-    const newCompletedIds = [...userStats.completedNodeIds, nodeId];
+    const newCompletedIds = passed
+      ? [...userStats.completedNodeIds, nodeId]
+      : userStats.completedNodeIds;
 
     const newStats: UserStats = {
       ...userStats,

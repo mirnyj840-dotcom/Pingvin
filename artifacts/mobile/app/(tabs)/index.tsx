@@ -168,10 +168,10 @@ export default function HomeScreen() {
         </View>
 
         {/* Progress Overview */}
-        <View style={[styles.statsGrid, { gap: 10 }]}>
+        <View style={styles.statsGrid}>
           <StatCard
             label="Глав пройдено"
-            value={`${completedChapters} / ${chapters.length}`}
+            value={`${completedChapters}/${chapters.length}`}
             iconName="map"
             color={colors.green}
             colors={colors}
@@ -188,7 +188,7 @@ export default function HomeScreen() {
             colors={colors}
           />
           <StatCard
-            label="Заданий решено"
+            label="Заданий"
             value={`${userStats.solvedTasks}`}
             iconName="check-circle"
             color={colors.primary}
@@ -346,15 +346,15 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 10,
   },
   statCard: {
-    width: "48%",
+    flexBasis: "48%",
+    flexGrow: 1,
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
     gap: 6,
-    marginBottom: 10,
-    marginRight: "4%",
   },
   statIcon: {
     width: 36,
