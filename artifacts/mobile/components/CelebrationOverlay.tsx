@@ -31,130 +31,88 @@ const CONFETTI_COLORS = [
   "#10B981", "#3B82F6", "#EF4444", "#F97316",
   "#06B6D4", "#A3E635", "#FBBF24", "#C084FC",
 ];
-
-const CONFETTI_COUNT = 40;
-
+const CONFETTI_COUNT = 44;
 const PARTICLES = Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
   id: i,
-  x: (i / CONFETTI_COUNT) * SW + (Math.sin(i * 2.3) * 30),
+  x: (i / CONFETTI_COUNT) * SW + Math.sin(i * 2.3) * 28,
   color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-  w: 6 + ((i * 7) % 10),
-  h: 4 + ((i * 5) % 8),
-  delay: (i % 10) * 80,
-  duration: 1800 + ((i * 137) % 1200),
+  w: 6 + ((i * 7) % 11),
+  h: 4 + ((i * 5) % 9),
+  delay: (i % 12) * 70,
+  duration: 1700 + ((i * 137) % 1300),
   rotDeg: 180 + ((i * 113) % 360),
-  xDrift: ((i % 2 === 0 ? 1 : -1)) * (20 + ((i * 31) % 80)),
-  isCircle: i % 5 === 0,
+  xDrift: (i % 2 === 0 ? 1 : -1) * (22 + ((i * 31) % 85)),
+  isCircle: i % 6 === 0,
 }));
 
-function ConfettiParticle({
-  x, color, w, h, delay, duration, rotDeg, xDrift, isCircle,
-}: typeof PARTICLES[0]) {
-  const progress = useSharedValue(0);
-
+function ConfettiParticle({ x, color, w, h, delay, duration, rotDeg, xDrift, isCircle }: typeof PARTICLES[0]) {
+  const p = useSharedValue(0);
   useEffect(() => {
-    progress.value = withDelay(
-      delay,
-      withTiming(1, { duration, easing: Easing.out(Easing.cubic) })
-    );
+    p.value = withDelay(delay, withTiming(1, { duration, easing: Easing.out(Easing.cubic) }));
   }, []);
-
-  const style = useAnimatedStyle(() => {
-    const ty = interpolate(progress.value, [0, 1], [-80, SH + 80]);
-    const tx = interpolate(progress.value, [0, 1], [0, xDrift]);
-    const rot = interpolate(progress.value, [0, 1], [0, rotDeg]);
-    const opacity = interpolate(progress.value, [0, 0.65, 1], [1, 1, 0]);
-    const scale = interpolate(progress.value, [0, 0.1, 1], [0, 1, 0.8]);
-    return {
-      transform: [
-        { translateX: tx },
-        { translateY: ty },
-        { rotate: `${rot}deg` },
-        { scale },
-      ],
-      opacity,
-    };
-  });
-
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(p.value, [0, 1], [0, xDrift]) },
+      { translateY: interpolate(p.value, [0, 1], [-80, SH + 80]) },
+      { rotate: `${interpolate(p.value, [0, 1], [0, rotDeg])}deg` },
+      { scale: interpolate(p.value, [0, 0.1, 1], [0, 1, 0.75]) },
+    ],
+    opacity: interpolate(p.value, [0, 0.65, 1], [1, 1, 0]),
+  }));
   return (
     <Animated.View
-      style={[
-        {
-          position: "absolute",
-          left: x,
-          top: 0,
-          width: isCircle ? w : w,
-          height: isCircle ? w : h,
-          borderRadius: isCircle ? w / 2 : 2,
-          backgroundColor: color,
-        },
-        style,
-      ]}
+      style={[{
+        position: "absolute", left: x, top: 0,
+        width: isCircle ? w : w, height: isCircle ? w : h,
+        borderRadius: isCircle ? w / 2 : 2,
+        backgroundColor: color,
+      }, style]}
     />
   );
 }
 
 function StarRay({ angle, delay }: { angle: number; delay: number }) {
-  const progress = useSharedValue(0);
-
+  const p = useSharedValue(0);
   useEffect(() => {
-    progress.value = withDelay(
-      delay,
-      withSequence(
-        withTiming(1, { duration: 400, easing: Easing.out(Easing.back(1.2)) }),
-        withTiming(0, { duration: 300, easing: Easing.in(Easing.quad) })
-      )
-    );
+    p.value = withDelay(delay, withSequence(
+      withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.3)) }),
+      withTiming(0, { duration: 280, easing: Easing.in(Easing.quad) })
+    ));
   }, []);
-
-  const style = useAnimatedStyle(() => {
-    const dist = interpolate(progress.value, [0, 1], [20, 90]);
-    const opacity = interpolate(progress.value, [0, 0.3, 1], [0, 1, 0]);
-    const rad = (angle * Math.PI) / 180;
-    return {
-      transform: [
-        { translateX: Math.cos(rad) * dist },
-        { translateY: Math.sin(rad) * dist },
-      ],
-      opacity,
-    };
-  });
-
+  const rad = (angle * Math.PI) / 180;
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: Math.cos(rad) * interpolate(p.value, [0, 1], [18, 95]) },
+      { translateY: Math.sin(rad) * interpolate(p.value, [0, 1], [18, 95]) },
+    ],
+    opacity: interpolate(p.value, [0, 0.3, 1], [0, 1, 0]),
+  }));
   return (
     <Animated.View style={[styles.starRay, style]}>
-      <Feather name="star" size={12} color="#FBBF24" />
+      <Feather name="star" size={13} color="#FBBF24" />
     </Animated.View>
   );
 }
 
 function AnimatedStar({ index, lit }: { index: number; lit: boolean }) {
   const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
-
+  const op = useSharedValue(0);
   useEffect(() => {
-    scale.value = withDelay(
-      400 + index * 120,
-      withSpring(lit ? 1 : 0.6, { damping: 8, stiffness: 200 })
-    );
-    opacity.value = withDelay(
-      400 + index * 120,
-      withTiming(1, { duration: 300 })
-    );
+    scale.value = withDelay(380 + index * 110, withSpring(lit ? 1 : 0.55, { damping: 8, stiffness: 200 }));
+    op.value = withDelay(380 + index * 110, withTiming(1, { duration: 280 }));
   }, []);
-
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    opacity: op.value,
   }));
-
   return (
     <Animated.View style={style}>
-      <Feather name="star" size={32} color={lit ? "#FBBF24" : "#374151"} />
+      <Feather name="star" size={34} color={lit ? "#FBBF24" : "#374151"} />
     </Animated.View>
   );
 }
 
-interface CelebrationOverlayProps {
+interface Props {
   passed: boolean;
   isTheory: boolean;
   xpEarned: number;
@@ -166,154 +124,125 @@ interface CelebrationOverlayProps {
 }
 
 export default function CelebrationOverlay({
-  passed,
-  isTheory,
-  xpEarned,
-  correct,
-  total,
-  alreadyDone,
-  mascot,
-  onContinue,
-}: CelebrationOverlayProps) {
+  passed, isTheory, xpEarned, correct, total, alreadyDone, mascot, onContinue,
+}: Props) {
   const [displayXp, setDisplayXp] = useState(0);
   const [btnReady, setBtnReady] = useState(false);
 
-  const overlayOpacity = useSharedValue(0);
-  const cardScale = useSharedValue(0.5);
-  const cardOpacity = useSharedValue(0);
+  const overlayOp = useSharedValue(0);
+  const cardScale = useSharedValue(0.45);
+  const cardOp = useSharedValue(0);
   const mascotScale = useSharedValue(0);
   const titleScale = useSharedValue(0);
   const xpPillScale = useSharedValue(0);
-  const mascotBounce = useSharedValue(0);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(
-        passed
-          ? Haptics.NotificationFeedbackType.Success
-          : Haptics.NotificationFeedbackType.Warning
+        passed ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
       );
     }
 
-    overlayOpacity.value = withTiming(1, { duration: 250 });
-    cardScale.value = withDelay(100, withSpring(1, { damping: 14, stiffness: 180 }));
-    cardOpacity.value = withDelay(100, withTiming(1, { duration: 250 }));
-    mascotScale.value = withDelay(200, withSpring(1, { damping: 10, stiffness: 200 }));
-    titleScale.value = withDelay(350, withSpring(1, { damping: 12, stiffness: 220 }));
-
-    mascotBounce.value = withDelay(
-      600,
-      withRepeat(
-        withSequence(
-          withTiming(-14, { duration: 300, easing: Easing.out(Easing.quad) }),
-          withTiming(0, { duration: 300, easing: Easing.in(Easing.quad) })
-        ),
-        3
-      )
-    );
+    overlayOp.value = withTiming(1, { duration: 220 });
+    cardScale.value = withDelay(80, withSpring(1, { damping: 13, stiffness: 175 }));
+    cardOp.value = withDelay(80, withTiming(1, { duration: 220 }));
+    mascotScale.value = withDelay(180, withSpring(1, { damping: 9, stiffness: 190 }));
+    titleScale.value = withDelay(320, withSpring(1, { damping: 12, stiffness: 220 }));
 
     if (xpEarned > 0) {
-      xpPillScale.value = withDelay(500, withSpring(1, { damping: 10, stiffness: 200 }));
-      let start: number | null = null;
-      const DURATION = 1200;
-      const DELAY = 600;
-      const tick = (ts: number) => {
-        if (!start) start = ts;
-        const elapsed = ts - start;
-        const p = Math.min(elapsed / DURATION, 1);
-        setDisplayXp(Math.round(p * xpEarned));
-        if (p < 1) requestAnimationFrame(tick);
-        else setBtnReady(true);
-      };
-      setTimeout(() => requestAnimationFrame(tick), DELAY);
+      xpPillScale.value = withDelay(480, withSpring(1, { damping: 9, stiffness: 200 }));
+      const DURATION = 1100;
+      setTimeout(() => {
+        let start: number | null = null;
+        const tick = (ts: number) => {
+          if (!start) start = ts;
+          const p = Math.min((ts - start) / DURATION, 1);
+          setDisplayXp(Math.round(p * xpEarned));
+          if (p < 1) requestAnimationFrame(tick);
+          else setBtnReady(true);
+        };
+        requestAnimationFrame(tick);
+      }, 550);
     } else {
-      xpPillScale.value = withDelay(500, withSpring(1, { damping: 10, stiffness: 200 }));
-      setTimeout(() => setBtnReady(true), 800);
+      xpPillScale.value = withDelay(480, withSpring(1, { damping: 10, stiffness: 200 }));
+      setTimeout(() => setBtnReady(true), 750);
     }
   }, []);
 
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOpacity.value }));
+  const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOp.value }));
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: cardScale.value }],
-    opacity: cardOpacity.value,
+    opacity: cardOp.value,
   }));
   const mascotStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: mascotScale.value },
-      { translateY: mascotBounce.value },
-    ],
+    transform: [{ scale: mascotScale.value }],
   }));
   const titleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: titleScale.value }],
   }));
-  const xpPillStyle = useAnimatedStyle(() => ({
+  const xpStyle = useAnimatedStyle(() => ({
     transform: [{ scale: xpPillScale.value }],
   }));
 
-  const title = isTheory
-    ? "Материал изучен!"
-    : passed
-    ? "Пройдено! 🎉"
-    : "Почти получилось!";
-
+  const title = isTheory ? "Материал изучен!" : passed ? "Пройдено! 🎉" : "Попробуй ещё раз";
   const subtitle = isTheory
-    ? "Теория усвоена. Так держать!"
+    ? "Теория усвоена. Молодец!"
     : passed
-    ? total > 0
-      ? `${correct} из ${total} правильно`
-      : "Отличная работа!"
-    : `${correct} из ${total} — попробуй ещё раз`;
+    ? total > 0 ? `${correct} из ${total} правильно` : "Отличная работа!"
+    : `${correct} из ${total} — нужно 80% для прохождения`;
 
   const accuracy = total > 0 ? correct / total : 1;
-  const stars = isTheory ? 3 : accuracy >= 1 ? 3 : accuracy >= 0.7 ? 2 : 1;
+  const stars = isTheory ? 3 : accuracy >= 0.95 ? 3 : accuracy >= 0.8 ? 2 : 1;
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, overlayStyle]}>
       {passed && (
         <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" } as any]}>
-          {PARTICLES.map((p) => (
-            <ConfettiParticle key={p.id} {...p} />
-          ))}
+          {PARTICLES.map((p) => <ConfettiParticle key={p.id} {...p} />)}
         </View>
       )}
 
       <Animated.View style={[styles.card, cardStyle]}>
+        {/* Mascot — dances on pass, fails on fail */}
         <View style={styles.mascotWrap}>
           <Animated.View style={mascotStyle}>
-            <Mascot type={mascot} size={110} animated />
+            <Mascot
+              type={mascot}
+              size={118}
+              mode={passed ? "dance" : "fail"}
+            />
           </Animated.View>
           {passed && (
             <View style={[styles.starsRing, { pointerEvents: "none" } as any]}>
               {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
-                <StarRay key={angle} angle={angle} delay={300 + i * 40} />
+                <StarRay key={angle} angle={angle} delay={280 + i * 45} />
               ))}
             </View>
           )}
         </View>
 
         <Animated.View style={titleStyle}>
-          <Text
-            style={[
-              styles.title,
-              { color: passed ? "#A78BFA" : "#FBBF24" },
-            ]}
-          >
+          <Text style={[styles.title, { color: passed ? "#A78BFA" : "#FBBF24" }]}>
             {title}
           </Text>
         </Animated.View>
 
         <Text style={styles.subtitle}>{subtitle}</Text>
 
-        <View style={styles.starsRow}>
-          {[1, 2, 3].map((s) => (
-            <AnimatedStar key={s} index={s} lit={s <= stars} />
-          ))}
-        </View>
+        {/* Stars row (only on pass or theory) */}
+        {(passed || isTheory) && (
+          <View style={styles.starsRow}>
+            {[1, 2, 3].map((s) => (
+              <AnimatedStar key={s} index={s} lit={s <= stars} />
+            ))}
+          </View>
+        )}
 
+        {/* XP pill */}
         {!alreadyDone && xpEarned > 0 && (
-          <Animated.View style={xpPillStyle}>
+          <Animated.View style={xpStyle}>
             <LinearGradient
-              colors={["#6366F1", "#8B5CF6"]}
+              colors={passed ? ["#6366F1", "#8B5CF6"] : ["#F59E0B", "#F97316"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.xpPill}
@@ -331,8 +260,18 @@ export default function CelebrationOverlay({
           </View>
         )}
 
+        {/* Hint for fail */}
+        {!passed && !isTheory && (
+          <View style={styles.retryHint}>
+            <Feather name="info" size={14} color="#64748b" />
+            <Text style={styles.retryHintText}>
+              Нужно {Math.ceil(total * 0.8)} правильных ответов из {total}
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
-          style={[styles.continueBtn, !btnReady && { opacity: 0.6 }]}
+          style={[styles.continueBtn, !btnReady && { opacity: 0.55 }]}
           onPress={onContinue}
           disabled={!btnReady}
           activeOpacity={0.85}
@@ -356,7 +295,7 @@ export default function CelebrationOverlay({
 
 const styles = StyleSheet.create({
   overlay: {
-    backgroundColor: "rgba(5,5,15,0.94)",
+    backgroundColor: "rgba(5,5,15,0.95)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 999,
@@ -368,32 +307,26 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 28,
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     borderWidth: 1,
     borderColor: "#1E1E40",
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
     elevation: 16,
   },
   mascotWrap: {
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    width: 120,
-    height: 120,
+    width: 130,
+    height: 130,
   },
   starsRing: {
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    width: 120,
-    height: 120,
+    width: 130,
+    height: 130,
   },
-  starRay: {
-    position: "absolute",
-  },
+  starRay: { position: "absolute" },
   title: {
     fontSize: 26,
     fontWeight: "800",
@@ -405,17 +338,14 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     textAlign: "center",
     fontFamily: "Inter_400Regular",
+    lineHeight: 22,
   },
-  starsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginVertical: 4,
-  },
+  starsRow: { flexDirection: "row", gap: 12, marginVertical: 2 },
   xpPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 24,
+    paddingHorizontal: 26,
     paddingVertical: 12,
     borderRadius: 50,
   },
@@ -436,15 +366,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#6366F130",
   },
-  alreadyText: {
-    fontSize: 13,
-    color: "#6366F1",
-    fontFamily: "Inter_500Medium",
+  alreadyText: { fontSize: 13, color: "#6366F1", fontFamily: "Inter_500Medium" },
+  retryHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "#1e293b",
+    borderRadius: 12,
   },
-  continueBtn: {
-    width: "100%",
-    marginTop: 4,
-  },
+  retryHintText: { fontSize: 12, color: "#64748b" },
+  continueBtn: { width: "100%", marginTop: 4 },
   continueBtnInner: {
     flexDirection: "row",
     alignItems: "center",

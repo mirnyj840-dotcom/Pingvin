@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useAppColors } from "@/hooks/useAppColors";
 import Mascot from "@/components/Mascot";
 import GradientButton from "@/components/GradientButton";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
+import StreakFireOverlay from "@/components/StreakFireOverlay";
 import VideoPlayer from "@/components/VideoPlayer";
 import { findNode } from "@/data/curriculum";
 import type { LessonResult } from "@/contexts/AppContext";
@@ -37,18 +38,19 @@ export default function LessonScreen() {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { settings, completeNode, nodeStatus } = useApp();
+  const { settings, userStats, completeNode, nodeStatus } = useApp();
 
   const node = findNode(nodeId);
+
   const [screen, setScreen] = useState<Screen>("intro");
   const [questionIdx, setQuestionIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [result, setResult] = useState<LessonResult | null>(null);
+  const [showStreak, setShowStreak] = useState(false);
 
   const shakeAnim = useSharedValue(0);
-  const optionScale = useSharedValue(1);
   const progressAnim = useSharedValue(0);
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
@@ -86,6 +88,19 @@ export default function LessonScreen() {
     );
   };
 
+  const resetQuiz = () => {
+    setScreen("question");
+    setQuestionIdx(0);
+    setSelected(null);
+    setConfirmed(false);
+    setCorrectCount(0);
+    setResult(null);
+    progressAnim.value = withTiming(1 / Math.max(totalQ, 1), {
+      duration: 400,
+      easing: Easing.out(Easing.quad),
+    });
+  };
+
   const handleCheck = async () => {
     if (!selected) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -109,7 +124,8 @@ export default function LessonScreen() {
       setSelected(null);
       setConfirmed(false);
     } else {
-      const finalCorrect = correctCount + (selected === currentQ?.correct ? 1 : 0);
+      const finalCorrect =
+        correctCount + (selected === currentQ?.correct ? 1 : 0);
       const res = await completeNode(nodeId, finalCorrect, totalQ);
       setResult(res);
       setScreen("result");
@@ -131,6 +147,21 @@ export default function LessonScreen() {
       duration: 400,
       easing: Easing.out(Easing.quad),
     });
+  };
+
+  /** Called when the user taps Continue/Retry on the CelebrationOverlay */
+  const handleCelebrationContinue = () => {
+    if (!result) return;
+
+    if (!result.passed) {
+      // Not passed → restart the quiz immediately
+      resetQuiz();
+    } else if (result.isStreakDay && !result.alreadyDone) {
+      // First successful lesson today → show streak fire screen
+      setShowStreak(true);
+    } else {
+      router.back();
+    }
   };
 
   if (!node) {
@@ -188,10 +219,15 @@ export default function LessonScreen() {
       {screen === "question" && currentQ && (
         <Animated.View style={[styles.flex, shakeStyle]}>
           <ScrollView
-            contentContainerStyle={[styles.questionContent, { paddingBottom: pb + 20 }]}
+            contentContainerStyle={[
+              styles.questionContent,
+              { paddingBottom: pb + 20 },
+            ]}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.questionCounter, { color: colors.subForeground }]}>
+            <Text
+              style={[styles.questionCounter, { color: colors.subForeground }]}
+            >
               Вопрос {questionIdx + 1} из {totalQ}
             </Text>
             <Text style={[styles.questionText, { color: colors.foreground }]}>
@@ -275,7 +311,8 @@ export default function LessonScreen() {
         </Animated.View>
       )}
 
-      {screen === "result" && result && (
+      {/* Celebration overlay (pass or fail screen) */}
+      {screen === "result" && result && !showStreak && (
         <CelebrationOverlay
           passed={result.passed}
           isTheory={isTheory}
@@ -284,6 +321,14 @@ export default function LessonScreen() {
           total={result.total}
           alreadyDone={result.alreadyDone}
           mascot={settings.mascot}
+          onContinue={handleCelebrationContinue}
+        />
+      )}
+
+      {/* Streak fire overlay — shown once per day after first lesson */}
+      {showStreak && (
+        <StreakFireOverlay
+          streak={userStats.streak}
           onContinue={() => router.back()}
         />
       )}
@@ -291,28 +336,16 @@ export default function LessonScreen() {
   );
 }
 
+// ─────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────
+
 function OptionButton({
-  opt,
-  index,
-  bg,
-  borderColor,
-  textColor,
-  confirmed,
-  isCorrect,
-  isSelected,
-  colors,
-  onPress,
+  opt, index, bg, borderColor, textColor, confirmed, isCorrect, isSelected, colors, onPress,
 }: {
-  opt: string;
-  index: number;
-  bg: string;
-  borderColor: string;
-  textColor: string;
-  confirmed: boolean;
-  isCorrect: boolean;
-  isSelected: boolean;
-  colors: ReturnType<typeof useAppColors>;
-  onPress: () => void;
+  opt: string; index: number; bg: string; borderColor: string; textColor: string;
+  confirmed: boolean; isCorrect: boolean; isSelected: boolean;
+  colors: ReturnType<typeof useAppColors>; onPress: () => void;
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0);
@@ -361,10 +394,7 @@ function OptionButton({
 }
 
 function TheoryContent({
-  node,
-  colors,
-  pb,
-  onFinish,
+  node, colors, pb, onFinish,
 }: {
   node: ReturnType<typeof findNode>;
   colors: ReturnType<typeof useAppColors>;
@@ -383,13 +413,12 @@ function TheoryContent({
           colors={[colors.primary, colors.primary + "88"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.theoryBanner, { borderRadius: colors.radius }]}
+          style={[styles.theoryBanner, { borderRadius: 16 }]}
         >
           <Feather name="book-open" size={28} color="white" />
           <Text style={styles.theoryBannerTitle}>{node.theoryTitle}</Text>
         </LinearGradient>
 
-        {/* Video player section */}
         <VideoPlayer videoUrl={node.videoUrl} title={node.theoryTitle} />
 
         <Text style={[styles.theoryText, { color: colors.subForeground }]}>
@@ -403,15 +432,25 @@ function TheoryContent({
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.keyPointsTitle, { color: colors.foreground }]}>
+            <Text
+              style={[styles.keyPointsTitle, { color: colors.foreground }]}
+            >
               Ключевые формулы
             </Text>
             {node.theoryKeyPoints.map((kp, i) => (
               <View key={i} style={styles.keyPointRow}>
                 <View
-                  style={[styles.keyPointDot, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.keyPointDot,
+                    { backgroundColor: colors.primary },
+                  ]}
                 />
-                <Text style={[styles.keyPointText, { color: colors.subForeground }]}>
+                <Text
+                  style={[
+                    styles.keyPointText,
+                    { color: colors.subForeground },
+                  ]}
+                >
                   {kp}
                 </Text>
               </View>
@@ -427,12 +466,10 @@ function TheoryContent({
   );
 }
 
+type MascotType = "penguin" | "raccoon" | "bear";
+
 function QuizIntro({
-  node,
-  colors,
-  settings,
-  pb,
-  onStart,
+  node, colors, settings, pb, onStart,
 }: {
   node: ReturnType<typeof findNode>;
   colors: ReturnType<typeof useAppColors>;
@@ -453,7 +490,9 @@ function QuizIntro({
   const mascotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: mascotScale.value }],
   }));
-  const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
 
   const typeLabel =
     node.type === "boss"
@@ -463,17 +502,21 @@ function QuizIntro({
       : "Мини-квиз";
   const typeDesc =
     node.type === "boss"
-      ? "Финальное испытание главы. Только лучшие проходят дальше!"
-      : "Ответь правильно на вопросы и заработай XP";
+      ? "Финальное испытание главы. Только 80% даёт прохождение!"
+      : "Нужно правильно ответить на 80% вопросов";
 
   return (
     <View style={[styles.flex, styles.introContent]}>
       <Animated.View style={mascotStyle}>
-        <Mascot type={settings.mascot} size={120} animated />
+        <Mascot type={settings.mascot} size={120} mode="idle" />
       </Animated.View>
       <Animated.View style={[styles.introTextWrap, contentStyle]}>
-        <Text style={[styles.introType, { color: colors.primary }]}>{typeLabel}</Text>
-        <Text style={[styles.introDesc, { color: colors.subForeground }]}>{typeDesc}</Text>
+        <Text style={[styles.introType, { color: colors.primary }]}>
+          {typeLabel}
+        </Text>
+        <Text style={[styles.introDesc, { color: colors.subForeground }]}>
+          {typeDesc}
+        </Text>
         <View
           style={[
             styles.introStats,
@@ -482,35 +525,59 @@ function QuizIntro({
         >
           <View style={styles.introStat}>
             <Feather name="help-circle" size={18} color={colors.primary} />
-            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
+            <Text
+              style={[styles.introStatValue, { color: colors.foreground }]}
+            >
               {(node.questions || []).length}
             </Text>
-            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+            <Text
+              style={[styles.introStatLabel, { color: colors.subForeground }]}
+            >
               вопросов
             </Text>
           </View>
-          <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
+          <View
+            style={[
+              styles.introStatDivider,
+              { backgroundColor: colors.border },
+            ]}
+          />
           <View style={styles.introStat}>
             <Feather name="zap" size={18} color={colors.amber} />
-            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
+            <Text
+              style={[styles.introStatValue, { color: colors.foreground }]}
+            >
               {node.xpReward}
             </Text>
-            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+            <Text
+              style={[styles.introStatLabel, { color: colors.subForeground }]}
+            >
               XP
             </Text>
           </View>
-          <View style={[styles.introStatDivider, { backgroundColor: colors.border }]} />
+          <View
+            style={[
+              styles.introStatDivider,
+              { backgroundColor: colors.border },
+            ]}
+          />
           <View style={styles.introStat}>
             <Feather name="target" size={18} color={colors.green} />
-            <Text style={[styles.introStatValue, { color: colors.foreground }]}>
-              60%
+            <Text
+              style={[styles.introStatValue, { color: colors.foreground }]}
+            >
+              80%
             </Text>
-            <Text style={[styles.introStatLabel, { color: colors.subForeground }]}>
+            <Text
+              style={[styles.introStatLabel, { color: colors.subForeground }]}
+            >
               для прохода
             </Text>
           </View>
         </View>
-        <View style={[styles.actionBar, { paddingBottom: pb + 16, width: "100%" }]}>
+        <View
+          style={[styles.actionBar, { paddingBottom: pb + 16, width: "100%" }]}
+        >
           <GradientButton
             label="Начать"
             iconName="play"
@@ -524,9 +591,7 @@ function QuizIntro({
 }
 
 function ExplanationCard({
-  explanation,
-  isCorrect,
-  colors,
+  explanation, isCorrect, colors,
 }: {
   explanation: string;
   isCorrect: boolean;
@@ -551,7 +616,9 @@ function ExplanationCard({
         style={[
           styles.explanation,
           {
-            backgroundColor: isCorrect ? colors.green + "15" : colors.red + "15",
+            backgroundColor: isCorrect
+              ? colors.green + "15"
+              : colors.red + "15",
             borderColor: isCorrect ? colors.green : colors.red,
           },
         ]}
@@ -562,7 +629,10 @@ function ExplanationCard({
           color={isCorrect ? colors.green : colors.red}
         />
         <Text
-          style={[styles.explanationText, { color: isCorrect ? colors.green : colors.red }]}
+          style={[
+            styles.explanationText,
+            { color: isCorrect ? colors.green : colors.red },
+          ]}
         >
           {explanation}
         </Text>
@@ -570,8 +640,6 @@ function ExplanationCard({
     </Animated.View>
   );
 }
-
-type MascotType = "penguin" | "raccoon" | "bear";
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -590,20 +658,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
+  progressBar: { flex: 1, height: 8, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 4 },
   nodeLabel: { fontSize: 13, fontWeight: "600" },
   errorText: { fontSize: 16, textAlign: "center", marginTop: 100 },
-  theoryContent: {
-    paddingHorizontal: 20,
-    gap: 16,
-    paddingTop: 8,
-  },
+  theoryContent: { paddingHorizontal: 20, gap: 16, paddingTop: 8 },
   theoryBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -617,11 +676,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Inter_700Bold",
   },
-  theoryText: {
-    fontSize: 16,
-    lineHeight: 26,
-    fontFamily: "Inter_400Regular",
-  },
+  theoryText: { fontSize: 16, lineHeight: 26, fontFamily: "Inter_400Regular" },
   keyPoints: {
     padding: 16,
     borderRadius: 16,
@@ -637,11 +692,7 @@ const styles = StyleSheet.create({
   keyPointRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   keyPointDot: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
   keyPointText: { flex: 1, fontSize: 14, lineHeight: 20 },
-  questionContent: {
-    paddingHorizontal: 20,
-    gap: 16,
-    paddingTop: 8,
-  },
+  questionContent: { paddingHorizontal: 20, gap: 16, paddingTop: 8 },
   questionCounter: { fontSize: 13 },
   questionText: {
     fontSize: 20,
@@ -680,22 +731,14 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 24,
   },
-  introTextWrap: {
-    width: "100%",
-    alignItems: "center",
-    gap: 12,
-  },
+  introTextWrap: { width: "100%", alignItems: "center", gap: 12 },
   introType: {
     fontSize: 28,
     fontWeight: "800",
     fontFamily: "Inter_700Bold",
     textAlign: "center",
   },
-  introDesc: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
-  },
+  introDesc: { fontSize: 16, textAlign: "center", lineHeight: 24 },
   introStats: {
     flexDirection: "row",
     borderRadius: 16,

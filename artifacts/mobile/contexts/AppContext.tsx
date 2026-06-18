@@ -44,6 +44,8 @@ export interface LessonResult {
   xpEarned: number;
   passed: boolean;
   alreadyDone: boolean;
+  /** true if this was the first successful lesson today (show streak animation) */
+  isStreakDay: boolean;
 }
 
 interface AppContextValue {
@@ -126,20 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         STORAGE_KEY,
         JSON.stringify({ stats, settings: sett })
       );
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   async function completeOnboarding(
     name: string,
     mascot: MascotType
   ): Promise<void> {
-    const newStats = {
-      ...userStats,
-      name: name.trim(),
-      onboardingDone: true,
-    };
+    const newStats = { ...userStats, name: name.trim(), onboardingDone: true };
     const newSettings = { ...settings, mascot };
     setUserStats(newStats);
     setSettings(newSettings);
@@ -161,7 +157,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
       if (chapterIdx === -1) return "locked";
-
       if (chapterIdx === 0 && nodeIdx === 0) return "active";
 
       let prevNodeId: string | null = null;
@@ -186,7 +181,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ): Promise<LessonResult> {
     const status = nodeStatus(nodeId);
     if (status === "done") {
-      return { correct, total, xpEarned: 0, passed: true, alreadyDone: true };
+      return {
+        correct,
+        total,
+        xpEarned: 0,
+        passed: true,
+        alreadyDone: true,
+        isStreakDay: false,
+      };
     }
 
     let xpReward = 20;
@@ -198,13 +200,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const passed = total === 0 || correct / total >= 0.6;
-    const xpEarned = passed ? xpReward : Math.floor(xpReward * 0.3);
+    // 80% pass threshold (strict — ensures the topic is truly understood)
+    const passed = total === 0 || correct / total >= 0.8;
+    const xpEarned = passed ? xpReward : Math.floor(xpReward * 0.15);
 
     const today = new Date().toISOString().split("T")[0];
+    const hadToday = userStats.weeklyDates.includes(today);
+
     const dailyXp =
-      userStats.dailyXpDate === today ? userStats.dailyXp + xpEarned : xpEarned;
-    const weeklyDates = userStats.weeklyDates.includes(today)
+      userStats.dailyXpDate === today
+        ? userStats.dailyXp + xpEarned
+        : xpEarned;
+    const weeklyDates = hadToday
       ? userStats.weeklyDates
       : [...userStats.weeklyDates, today];
 
@@ -212,13 +219,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = yesterday.toISOString().split("T")[0];
     const hadYesterday = userStats.weeklyDates.includes(yStr);
-    const hadToday = userStats.weeklyDates.includes(today);
     let newStreak = userStats.streak;
     if (!hadToday) {
       newStreak = hadYesterday ? userStats.streak + 1 : 1;
     }
 
-    // Update league based on XP
     const newXp = userStats.xp + xpEarned;
     let newLeague = userStats.league;
     if (newXp >= 2000) newLeague = 5;
@@ -247,7 +252,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUserStats(newStats);
     await saveData(newStats, settings);
 
-    return { correct, total, xpEarned, passed, alreadyDone: false };
+    // isStreakDay = first successful lesson of today
+    const isStreakDay = passed && !hadToday;
+
+    return { correct, total, xpEarned, passed, alreadyDone: false, isStreakDay };
   }
 
   async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
@@ -261,8 +269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const str = d.toISOString().split("T")[0];
-      result.push(userStats.weeklyDates.includes(str));
+      result.push(userStats.weeklyDates.includes(d.toISOString().split("T")[0]));
     }
     return result;
   }
@@ -270,8 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   function nextLessonId(): string | null {
     for (const ch of chapters) {
       for (const node of ch.nodes) {
-        const s = nodeStatus(node.id);
-        if (s === "active") return node.id;
+        if (nodeStatus(node.id) === "active") return node.id;
       }
     }
     return null;
@@ -279,25 +285,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function resetProgress(): Promise<void> {
     const newStats = { ...DEFAULT_STATS, isLoaded: true };
-    const newSettings = DEFAULT_SETTINGS;
     setUserStats(newStats);
-    setSettings(newSettings);
+    setSettings(DEFAULT_SETTINGS);
     await AsyncStorage.removeItem(STORAGE_KEY);
   }
 
-  const value: AppContextValue = {
-    userStats,
-    settings,
-    completeOnboarding,
-    completeNode,
-    updateSettings,
-    nodeStatus,
-    weekStreak,
-    nextLessonId,
-    resetProgress,
-  };
-
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider
+      value={{
+        userStats,
+        settings,
+        completeOnboarding,
+        completeNode,
+        updateSettings,
+        nodeStatus,
+        weekStreak,
+        nextLessonId,
+        resetProgress,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export function useApp(): AppContextValue {
