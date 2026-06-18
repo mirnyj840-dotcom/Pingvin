@@ -8,6 +8,7 @@ import Animated, {
   withSequence,
   withTiming,
   withSpring,
+  Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import type { LessonNode, NodeType } from "@/data/curriculum";
@@ -22,7 +23,7 @@ interface LessonNodeButtonProps {
   chapterColor: string;
 }
 
-const NODE_SIZE = 72;
+const NODE_SIZE = 78;
 
 const TYPE_ICON: Record<NodeType, keyof typeof Feather.glyphMap> = {
   theory: "book-open",
@@ -38,6 +39,13 @@ const TYPE_LABEL: Record<NodeType, string> = {
   boss: "Босс",
 };
 
+const TYPE_COLOR: Record<NodeType, string> = {
+  theory: "#6366f1",
+  miniQuiz: "#8b5cf6",
+  practice: "#06b6d4",
+  boss: "#ef4444",
+};
+
 export default function LessonNodeButton({
   node,
   status,
@@ -47,38 +55,48 @@ export default function LessonNodeButton({
   const colors = useAppColors();
   const pulse = useSharedValue(1);
   const press = useSharedValue(1);
-  const ringOpacity = useSharedValue(0.4);
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
 
   useEffect(() => {
-    if (status !== "active") return;
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.07, { duration: 900 }),
-        withTiming(1, { duration: 900 })
-      ),
-      -1
-    );
-    ringOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.15, { duration: 900 }),
-        withTiming(0.45, { duration: 900 })
-      ),
-      -1
-    );
+    if (status === "active") {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1.06, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1
+      );
+      ringScale.value = withRepeat(
+        withSequence(
+          withTiming(1.35, { duration: 1200, easing: Easing.out(Easing.quad) }),
+          withTiming(1, { duration: 0 })
+        ),
+        -1
+      );
+      ringOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 0 }),
+          withTiming(0, { duration: 1200, easing: Easing.out(Easing.quad) })
+        ),
+        -1
+      );
+    }
   }, [status]);
 
-  const nodeStyle = useAnimatedStyle(() => ({
+  const nodeAnim = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value * press.value }],
   }));
 
-  const ringStyle = useAnimatedStyle(() => ({
+  const rippleAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
     opacity: ringOpacity.value,
   }));
 
   const handlePress = async () => {
     if (status === "locked") return;
-    press.value = withSpring(0.92, { damping: 6, stiffness: 400 }, () => {
-      press.value = withSpring(1, { damping: 8, stiffness: 200 });
+    press.value = withSpring(0.9, { damping: 5, stiffness: 500 }, () => {
+      press.value = withSpring(1, { damping: 10, stiffness: 200 });
     });
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPress();
@@ -88,14 +106,14 @@ export default function LessonNodeButton({
   const isActive = status === "active";
   const isLocked = status === "locked";
 
-  const bgColor = isDone
+  const nodeColor = isDone
     ? chapterColor
     : isActive
-    ? colors.card
+    ? chapterColor + "18"
     : colors.track;
 
   const borderColor = isDone
-    ? chapterColor
+    ? "transparent"
     : isActive
     ? chapterColor
     : colors.border;
@@ -106,84 +124,137 @@ export default function LessonNodeButton({
     ? chapterColor
     : colors.mutedForeground;
 
-  const iconName = isDone
+  const iconName: keyof typeof Feather.glyphMap = isDone
     ? "check"
     : isLocked
     ? "lock"
-    : TYPE_ICON[node.type] || "circle";
+    : TYPE_ICON[node.type] ?? "circle";
 
   return (
     <View style={styles.wrapper}>
-      <Animated.View style={nodeStyle}>
-        {/* Outer glow ring for active */}
-        {isActive && (
-          <Animated.View
-            style={[
-              styles.ring,
-              { borderColor: chapterColor },
-              ringStyle,
-            ]}
-          />
-        )}
+      {/* Ripple ring for active */}
+      {isActive && (
+        <Animated.View
+          style={[
+            styles.ripple,
+            { borderColor: chapterColor },
+            rippleAnim,
+          ]}
+        />
+      )}
+
+      <Animated.View style={nodeAnim}>
         <TouchableOpacity
           onPress={handlePress}
-          activeOpacity={isLocked ? 1 : 0.85}
+          activeOpacity={isLocked ? 1 : 0.8}
+          disabled={isLocked}
           style={[
             styles.node,
             {
-              backgroundColor: bgColor,
-              borderColor: borderColor,
-              borderWidth: isActive ? 2.5 : isDone ? 0 : 1.5,
-              opacity: isLocked ? 0.40 : 1,
-              elevation: isDone || isActive ? 6 : 0,
+              backgroundColor: nodeColor,
+              borderColor,
+              borderWidth: isActive ? 2.5 : 1.5,
+              opacity: isLocked ? 0.35 : 1,
             },
           ]}
         >
-          <Feather name={iconName} size={26} color={iconColor} />
+          {/* Boss node gets special inner glow */}
+          {node.type === "boss" && !isLocked && (
+            <View
+              style={[
+                styles.bossGlow,
+                {
+                  backgroundColor: isDone
+                    ? "rgba(255,255,255,0.15)"
+                    : "#ef444420",
+                },
+              ]}
+            />
+          )}
+
+          <Feather
+            name={iconName}
+            size={node.type === "boss" && !isLocked && !isDone ? 30 : 26}
+            color={
+              node.type === "boss" && isActive ? "#ef4444" : iconColor
+            }
+          />
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Node label */}
+      {/* Label */}
       <Text
         style={[
           styles.label,
-          { color: isLocked ? colors.mutedForeground : colors.subForeground },
+          {
+            color: isLocked
+              ? colors.mutedForeground
+              : isDone
+              ? colors.foreground
+              : colors.foreground,
+            opacity: isLocked ? 0.5 : 1,
+          },
         ]}
         numberOfLines={1}
       >
         {node.label}
       </Text>
 
-      {/* Type badge */}
-      <View
-        style={[
-          styles.typeBadge,
-          {
-            backgroundColor: isLocked
-              ? colors.track
-              : isDone
-              ? chapterColor + "22"
-              : chapterColor + "18",
-            borderColor: isLocked
-              ? colors.border
-              : chapterColor + "30",
-          },
-        ]}
-      >
-        <Text
+      {/* Type + XP badge row */}
+      <View style={styles.badgeRow}>
+        <View
           style={[
-            styles.typeText,
+            styles.typeBadge,
             {
-              color: isLocked
-                ? colors.mutedForeground
-                : isDone
-                ? chapterColor
-                : chapterColor,
+              backgroundColor: isLocked
+                ? colors.track
+                : (TYPE_COLOR[node.type] ?? chapterColor) + "22",
+              borderColor: isLocked
+                ? colors.border
+                : (TYPE_COLOR[node.type] ?? chapterColor) + "40",
             },
           ]}
         >
-          {TYPE_LABEL[node.type]}
-        </Text>
+          <Text
+            style={[
+              styles.typeText,
+              {
+                color: isLocked
+                  ? colors.mutedForeground
+                  : TYPE_COLOR[node.type] ?? chapterColor,
+              },
+            ]}
+          >
+            {TYPE_LABEL[node.type]}
+          </Text>
+        </View>
+
+        {!isLocked && (
+          <View
+            style={[
+              styles.xpBadge,
+              {
+                backgroundColor: isDone
+                  ? colors.green + "20"
+                  : colors.amber + "18",
+              },
+            ]}
+          >
+            <Feather
+              name="zap"
+              size={9}
+              color={isDone ? colors.green : colors.amber}
+            />
+            <Text
+              style={[
+                styles.xpText,
+                { color: isDone ? colors.green : colors.amber },
+              ]}
+            >
+              {node.xpReward}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -192,16 +263,16 @@ export default function LessonNodeButton({
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    position: "relative",
   },
-  ring: {
+  ripple: {
     position: "absolute",
-    width: NODE_SIZE + 18,
-    height: NODE_SIZE + 18,
-    borderRadius: (NODE_SIZE + 18) / 2,
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_SIZE / 2,
     borderWidth: 2.5,
-    top: -9,
-    left: -9,
+    zIndex: -1,
   },
   node: {
     width: NODE_SIZE,
@@ -209,21 +280,46 @@ const styles = StyleSheet.create({
     borderRadius: NODE_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  bossGlow: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    borderRadius: NODE_SIZE / 2,
   },
   label: {
     fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
-    maxWidth: NODE_SIZE + 20,
+    maxWidth: NODE_SIZE + 24,
+    fontFamily: "Inter_600SemiBold",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
   typeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
   },
   typeText: {
-    fontSize: 10,
-    fontWeight: "600",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  xpBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 7,
+  },
+  xpText: {
+    fontSize: 9,
+    fontWeight: "700",
   },
 });
