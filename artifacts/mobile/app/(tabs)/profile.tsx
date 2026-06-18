@@ -8,27 +8,35 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
+import Svg, { Circle } from "react-native-svg";
 import { useApp } from "@/contexts/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
-import Mascot from "@/components/Mascot";
+import Mascot, { MascotType } from "@/components/Mascot";
 import { achievements } from "@/data/achievements";
+import * as Haptics from "expo-haptics";
 
 const LEAGUE_NAMES = ["Бронза", "Серебро", "Золото", "Платина", "Алмаз"];
 const LEAGUE_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E2E0DF", "#B9F2FF"];
 const LEAGUE_ICONS: Array<keyof typeof Feather.glyphMap> = [
-  "award",
-  "award",
-  "award",
-  "star",
-  "zap",
+  "award", "award", "award", "star", "zap",
 ];
+
+const RING_SIZE = 188;
+const RING_SW = 14;
+const RING_R = (RING_SIZE - RING_SW * 2) / 2;
+const RING_CIRC = 2 * Math.PI * RING_R;
+
+const MASCOT_NAMES: Record<MascotType, string> = {
+  penguin: "Пингвин",
+  raccoon: "Енот",
+  bear: "Мишка",
+};
 
 export default function ProfileScreen() {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
-  const { userStats, settings } = useApp();
+  const { userStats, settings, updateSettings } = useApp();
 
   const level = Math.floor(userStats.xp / 100) + 1;
   const xpInLevel = userStats.xp % 100;
@@ -38,7 +46,7 @@ export default function ProfileScreen() {
       ? Math.round((userStats.correctAnswers / userStats.totalAnswers) * 100)
       : 0;
 
-  const unlockedAchievements = achievements.filter((a) =>
+  const unlockedCount = achievements.filter((a) =>
     a.isUnlocked({
       xp: userStats.xp,
       streak: userStats.streak,
@@ -47,7 +55,7 @@ export default function ProfileScreen() {
       totalAnswers: userStats.totalAnswers,
       completedNodeIds: userStats.completedNodeIds,
     })
-  );
+  ).length;
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
@@ -55,6 +63,13 @@ export default function ProfileScreen() {
   const leagueColor = LEAGUE_COLORS[userStats.league - 1];
   const leagueName = LEAGUE_NAMES[userStats.league - 1];
   const leagueIcon = LEAGUE_ICONS[userStats.league - 1];
+
+  const dashLen = RING_CIRC * xpProgress;
+
+  const handleMascotChange = async (type: MascotType) => {
+    await Haptics.selectionAsync();
+    await updateSettings({ mascot: type });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -65,138 +80,204 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Avatar + Name */}
-        <View style={styles.avatarSection}>
-          <LinearGradient
-            colors={[settings.avatarColor, settings.avatarColor + "99"]}
-            style={[styles.avatarGradient, { borderRadius: 52 }]}
-          >
-            <Mascot type={settings.mascot} size={72} animated />
-          </LinearGradient>
+        {/* ── Hero: XP ring + mascot ── */}
+        <View style={styles.heroSection}>
+          <View style={styles.ringWrap}>
+            {/* SVG ring */}
+            <Svg width={RING_SIZE} height={RING_SIZE}>
+              {/* Track */}
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_R}
+                stroke={colors.track}
+                strokeWidth={RING_SW}
+                fill="none"
+              />
+              {/* Progress */}
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_R}
+                stroke={colors.primary}
+                strokeWidth={RING_SW}
+                strokeDasharray={`${dashLen} ${RING_CIRC}`}
+                fill="none"
+                strokeLinecap="round"
+                transform={`rotate(-90, ${RING_SIZE / 2}, ${RING_SIZE / 2})`}
+              />
+            </Svg>
+            {/* Mascot centered inside ring */}
+            <View style={styles.mascotOverlay} pointerEvents="none">
+              <Mascot type={settings.mascot} size={112} animated />
+            </View>
+            {/* Level badge at bottom-right of ring */}
+            <View
+              style={[styles.levelBadge, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.levelBadgeText}>Ур. {level}</Text>
+            </View>
+          </View>
+
+          {/* Name & sub */}
           <Text style={[styles.userName, { color: colors.foreground }]}>
             {userStats.name}
           </Text>
           <Text style={[styles.userSub, { color: colors.subForeground }]}>
-            9 класс · ОГЭ 2025 · Ур. {level}
+            9 класс · ОГЭ 2025
+          </Text>
+          <Text style={[styles.xpHint, { color: colors.mutedForeground }]}>
+            {xpInLevel} / 100 XP — до ур. {level + 1} ещё {100 - xpInLevel} XP
           </Text>
 
-          {/* XP bar */}
-          <View style={styles.xpSection}>
-            <View
-              style={[styles.xpTrack, { backgroundColor: colors.track }]}
-            >
-              <View
-                style={[
-                  styles.xpFill,
-                  {
-                    backgroundColor: colors.primary,
-                    width: `${xpProgress * 100}%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.xpLabel, { color: colors.mutedForeground }]}>
-              {xpInLevel} / 100 XP до ур. {level + 1}
-            </Text>
+          {/* ── Mascot picker ── */}
+          <View style={styles.mascotPickerRow}>
+            {(["penguin", "raccoon", "bear"] as MascotType[]).map((type) => {
+              const active = settings.mascot === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => handleMascotChange(type)}
+                  style={[
+                    styles.mascotOption,
+                    {
+                      backgroundColor: active
+                        ? colors.primary + "18"
+                        : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                    },
+                  ]}
+                  activeOpacity={0.75}
+                >
+                  <Mascot type={type} size={46} />
+                  <Text
+                    style={[
+                      styles.mascotOptionLabel,
+                      {
+                        color: active ? colors.primary : colors.subForeground,
+                        fontWeight: active ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {MASCOT_NAMES[type]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        {/* League card */}
+        {/* ── League card ── */}
         <View
           style={[
             styles.leagueCard,
-            { backgroundColor: leagueColor + "18", borderColor: leagueColor + "35" },
+            {
+              backgroundColor: leagueColor + "16",
+              borderColor: leagueColor + "40",
+            },
           ]}
         >
-          <Feather name={leagueIcon} size={28} color={leagueColor} />
+          <View
+            style={[styles.leagueIconWrap, { backgroundColor: leagueColor + "28" }]}
+          >
+            <Feather name={leagueIcon} size={24} color={leagueColor} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.leagueTitle, { color: colors.foreground }]}>
               {leagueName} лига
             </Text>
             <Text style={[styles.leagueSub, { color: colors.subForeground }]}>
-              {userStats.xp} XP заработано
+              {userStats.xp} XP собрано
             </Text>
           </View>
-          <View
-            style={[
-              styles.leagueBadge,
-              { backgroundColor: leagueColor + "30" },
-            ]}
-          >
-            <Text style={[styles.leagueBadgeText, { color: leagueColor }]}>
-              {userStats.league} / 5
-            </Text>
+          {/* League step indicators */}
+          <View style={styles.leagueSteps}>
+            {[1, 2, 3, 4, 5].map((l) => (
+              <View
+                key={l}
+                style={[
+                  styles.leagueStep,
+                  {
+                    backgroundColor:
+                      l <= userStats.league ? leagueColor : colors.track,
+                  },
+                ]}
+              />
+            ))}
           </View>
         </View>
 
-        {/* Stats grid */}
+        {/* ── Stats 2×2 ── */}
         <View style={styles.statsGrid}>
           {[
             {
               label: "Стрик",
               value: `${userStats.streak}`,
+              sub: "дней подряд",
               icon: "activity" as const,
               color: colors.red,
-              sub: "дней",
             },
             {
               label: "XP",
               value: `${userStats.xp}`,
+              sub: "очков опыта",
               icon: "zap" as const,
               color: colors.primary,
-              sub: "очков",
             },
             {
               label: "Заданий",
               value: `${userStats.solvedTasks}`,
+              sub: "решено",
               icon: "check-circle" as const,
               color: colors.green,
-              sub: "решено",
             },
             {
               label: "Точность",
               value: `${accuracy}%`,
+              sub: "правильных",
               icon: "target" as const,
               color: colors.amber,
-              sub: "правильно",
             },
-          ].map((stat) => (
+          ].map((s) => (
             <View
-              key={stat.label}
+              key={s.label}
               style={[
                 styles.statCard,
                 { backgroundColor: colors.card, borderColor: colors.border },
               ]}
             >
-              <View
-                style={[
-                  styles.statIcon,
-                  { backgroundColor: stat.color + "20" },
-                ]}
-              >
-                <Feather name={stat.icon} size={18} color={stat.color} />
+              <View style={[styles.statIcon, { backgroundColor: s.color + "20" }]}>
+                <Feather name={s.icon} size={18} color={s.color} />
               </View>
               <Text style={[styles.statValue, { color: colors.foreground }]}>
-                {stat.value}
+                {s.value}
               </Text>
               <Text style={[styles.statSub, { color: colors.subForeground }]}>
-                {stat.sub}
+                {s.sub}
               </Text>
             </View>
           ))}
         </View>
 
-        {/* Achievements */}
+        {/* ── Achievements ── */}
         <View style={styles.sectionWrap}>
-          <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeader}>
             <Feather name="award" size={16} color={colors.amber} />
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               Достижения
             </Text>
-            <Text style={[styles.sectionCount, { color: colors.subForeground }]}>
-              {unlockedAchievements.length} / {achievements.length}
-            </Text>
+            <View
+              style={[
+                styles.countBadge,
+                { backgroundColor: colors.amber + "20" },
+              ]}
+            >
+              <Text style={[styles.countText, { color: colors.amber }]}>
+                {unlockedCount} / {achievements.length}
+              </Text>
+            </View>
           </View>
+
           <View style={styles.achievementsGrid}>
             {achievements.map((a) => {
               const unlocked = a.isUnlocked({
@@ -214,12 +295,12 @@ export default function ProfileScreen() {
                     styles.achievementCard,
                     {
                       backgroundColor: unlocked
-                        ? a.iconColor + "15"
+                        ? a.iconColor + "14"
                         : colors.card,
                       borderColor: unlocked
                         ? a.iconColor + "35"
                         : colors.border,
-                      opacity: unlocked ? 1 : 0.45,
+                      opacity: unlocked ? 1 : 0.42,
                     },
                   ]}
                 >
@@ -228,7 +309,7 @@ export default function ProfileScreen() {
                       styles.achievementIcon,
                       {
                         backgroundColor: unlocked
-                          ? a.iconColor + "25"
+                          ? a.iconColor + "26"
                           : colors.track,
                       },
                     ]}
@@ -242,7 +323,11 @@ export default function ProfileScreen() {
                   <Text
                     style={[
                       styles.achievementLabel,
-                      { color: unlocked ? colors.foreground : colors.subForeground },
+                      {
+                        color: unlocked
+                          ? colors.foreground
+                          : colors.subForeground,
+                      },
                     ]}
                     numberOfLines={2}
                   >
@@ -271,12 +356,32 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, gap: 16 },
-  avatarSection: { alignItems: "center", gap: 8, paddingTop: 8 },
-  avatarGradient: {
-    width: 104,
-    height: 104,
+
+  heroSection: { alignItems: "center", gap: 8, paddingTop: 4 },
+  ringWrap: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
+  },
+  mascotOverlay: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  levelBadge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  levelBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "700",
   },
   userName: {
     fontSize: 22,
@@ -285,10 +390,25 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   userSub: { fontSize: 13 },
-  xpSection: { width: "100%", gap: 6, marginTop: 4 },
-  xpTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
-  xpFill: { height: "100%", borderRadius: 4 },
-  xpLabel: { fontSize: 12, textAlign: "center" },
+  xpHint: { fontSize: 12, marginTop: 2 },
+
+  mascotPickerRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
+  },
+  mascotOption: {
+    alignItems: "center",
+    gap: 6,
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 2,
+    flex: 1,
+  },
+  mascotOptionLabel: {
+    fontSize: 11,
+  },
+
   leagueCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -297,17 +417,30 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
   },
+  leagueIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   leagueTitle: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
   leagueSub: { fontSize: 12, marginTop: 2 },
-  leagueBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  leagueBadgeText: { fontSize: 13, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  leagueSteps: { flexDirection: "row", gap: 4 },
+  leagueStep: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
   },
   statCard: {
-    width: "47%",
+    flexBasis: "47%",
+    flexGrow: 1,
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
@@ -323,8 +456,9 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 22, fontWeight: "800", fontFamily: "Inter_700Bold" },
   statSub: { fontSize: 12 },
+
   sectionWrap: { gap: 12 },
-  sectionHeaderRow: {
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -335,7 +469,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
-  sectionCount: { fontSize: 13 },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  countText: { fontSize: 12, fontWeight: "600" },
   achievementsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -351,9 +490,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   achievementIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
