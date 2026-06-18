@@ -5,16 +5,14 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
-  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 import { useApp } from "@/contexts/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
-import Mascot, { MascotType } from "@/components/Mascot";
+import Mascot from "@/components/Mascot";
 import { achievements } from "@/data/achievements";
-import * as Haptics from "expo-haptics";
 
 const LEAGUE_NAMES = ["Бронза", "Серебро", "Золото", "Платина", "Алмаз"];
 const LEAGUE_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E2E0DF", "#B9F2FF"];
@@ -27,16 +25,10 @@ const RING_SW = 14;
 const RING_R = (RING_SIZE - RING_SW * 2) / 2;
 const RING_CIRC = 2 * Math.PI * RING_R;
 
-const MASCOT_NAMES: Record<MascotType, string> = {
-  penguin: "Пингвин",
-  raccoon: "Енот",
-  bear: "Мишка",
-};
-
 export default function ProfileScreen() {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
-  const { userStats, settings, updateSettings } = useApp();
+  const { userStats, settings } = useApp();
 
   const level = Math.floor(userStats.xp / 100) + 1;
   const xpInLevel = userStats.xp % 100;
@@ -65,11 +57,6 @@ export default function ProfileScreen() {
   const leagueIcon = LEAGUE_ICONS[userStats.league - 1];
 
   const dashLen = RING_CIRC * xpProgress;
-
-  const handleMascotChange = async (type: MascotType) => {
-    await Haptics.selectionAsync();
-    await updateSettings({ mascot: type });
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -130,41 +117,6 @@ export default function ProfileScreen() {
             {xpInLevel} / 100 XP — до ур. {level + 1} ещё {100 - xpInLevel} XP
           </Text>
 
-          {/* ── Mascot picker ── */}
-          <View style={styles.mascotPickerRow}>
-            {(["penguin", "raccoon", "bear"] as MascotType[]).map((type) => {
-              const active = settings.mascot === type;
-              return (
-                <TouchableOpacity
-                  key={type}
-                  onPress={() => handleMascotChange(type)}
-                  style={[
-                    styles.mascotOption,
-                    {
-                      backgroundColor: active
-                        ? colors.primary + "18"
-                        : colors.card,
-                      borderColor: active ? colors.primary : colors.border,
-                    },
-                  ]}
-                  activeOpacity={0.75}
-                >
-                  <Mascot type={type} size={46} />
-                  <Text
-                    style={[
-                      styles.mascotOptionLabel,
-                      {
-                        color: active ? colors.primary : colors.subForeground,
-                        fontWeight: active ? "700" : "500",
-                      },
-                    ]}
-                  >
-                    {MASCOT_NAMES[type]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
 
         {/* ── League card ── */}
@@ -391,23 +343,6 @@ const styles = StyleSheet.create({
   },
   userSub: { fontSize: 13 },
   xpHint: { fontSize: 12, marginTop: 2 },
-
-  mascotPickerRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
-  },
-  mascotOption: {
-    alignItems: "center",
-    gap: 6,
-    padding: 10,
-    borderRadius: 16,
-    borderWidth: 2,
-    flex: 1,
-  },
-  mascotOptionLabel: {
-    fontSize: 11,
-  },
 
   leagueCard: {
     flexDirection: "row",
