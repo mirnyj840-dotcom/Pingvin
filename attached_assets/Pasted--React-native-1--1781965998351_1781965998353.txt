@@ -1,0 +1,278 @@
+Приложение созданное для подготовки к ОГЭ - базируется на фреймворке React native, мои планы:
+1.Сделать приложение конкурентно способное таким мастодонтам как Duolingo и Stepik.
+2. Кнопка "Главная":
+  1. Сделать максимально интуитивный интерфейс и понятный для пользователя, делаем расчет для пользователей от 14 до 18 лет.
+3. Кнопка "Путь":
+  1. Проанализировать конкурентов
+  2. Создать максимально эффективные задания для обучения и подготовки к сдачи ОГЭ
+  3. Прописать логику "random". Пояснение: нельзя чтобы варианты ответов повторялись, иначе повышается шанс списать, найти уловку, "смухливать", сбиться с главной цели данного     приложения - научится и подготовится к ОГЭ.
+  4. Проанализировать сайты по подготовке к ОГЭ, сайты с билетами на ЕГЭ и понять как лучше всего научится их решать 
+  5. Сделать теорию, понятной и интересной, найти баланс.
+  6. Дизайн по дороге: сделать его интересным, продумать качественный UI ДИЗАЙН.
+4. Кнопка "Профиль":
+  1. Сделать максимально интуитивный интерфейс и понятный для пользователя, делаем расчет для пользователей от 14 до 18 лет.
+5.Кнопка "Настройки":
+  1. Тема - убрать Нуар, Нордик, сделать качественные темы для приложения:
+1. Тема в виде cel-shading (сел-шейдинг) или toon shading, промт для такой темы:
+You are a senior React Native UI/UX designer.
+
+Project: educational mobile application for OGE exam preparation.
+
+Tech Stack:
+
+* React Native
+* Expo
+* TypeScript
+* React Navigation
+* React Native Reanimated
+* React Native SVG
+* NativeWind (Tailwind for React Native)
+
+Task:
+Create a complete visual theme system for the application.
+
+IMPORTANT:
+Do not redesign the app structure.
+Do not change navigation.
+Do not change business logic.
+Only improve the visual design system.
+
+Design Goals:
+
+* Modern
+* Premium
+* Friendly
+* Motivating
+* Clean
+* Mobile-first
+* Optimized for students aged 14-17
+
+Inspiration:
+
+* Duolingo
+* Headway
+* Notion Mobile
+* Linear
+* Superhuman
+* Modern iOS applications
+
+Visual Style:
+
+* Soft minimalism
+* Large rounded corners (20-24px)
+* Soft shadows
+* Floating cards
+* Smooth gradients
+* Friendly illustrations
+* Micro interactions
+* Light gamification
+
+Color Palette:
+Primary: #5B4CF0
+Primary Light: #7C6BFF
+Accent Orange: #FF8A3D
+Success: #22C55E
+Background: #FAF8F5
+Surface: #FFFFFF
+Text Primary: #1F2937
+Text Secondary: #6B7280
+
+Components:
+
+* Dashboard cards
+* Lesson cards
+* Progress bars
+* XP widgets
+* Achievement cards
+* Bottom navigation
+* Buttons
+* Inputs
+* Profile blocks
+
+Mascot:
+Keep the penguin.
+Use clean vector illustrations.
+No cartoon overload.
+
+Animations:
+Use Reanimated.
+Add:
+
+* button press scale animation
+* card hover feedback
+* progress fill animation
+* achievement unlock animation
+* screen transitions
+
+DO NOT USE:
+
+* Comic book style
+* Thick black borders
+* Heavy textures
+* Grunge effects
+* Visual noise
+* Dark gamer aesthetics
+
+UI Feeling:
+The user should feel:
+"This app is modern, pleasant, and makes me want to study every day."
+
+Implementation Requirements:
+
+* Create reusable design tokens
+* Create theme.ts
+* Create colors.ts
+* Create spacing.ts
+* Create typography.ts
+* Create shadow presets
+* Refactor components to use the new theme system
+
+Output production-ready React Native code.
+2. Вторая тема должна быть такой:
+
+You are a senior React Native UI/UX designer.
+
+Project:
+Mobile application for OGE exam preparation.
+
+Tech Stack:
+
+* React Native
+* Expo
+* TypeScript
+* React Navigation
+* React Native Reanimated
+* NativeWind
+* React Native SVG
+
+Task:
+Create a complete "Pink Pick Me Girl" theme for the application.
+
+IMPORTANT:
+Do not change navigation.
+Do not change app structure.
+Do not change business logic.
+Only redesign visuals.
+
+Theme Name:
+Pink Pick Me
+
+Target Audience:
+Girls aged 13-18.
+
+Mood:
+
+* Cute
+* Soft
+* Cozy
+* Aesthetic
+* Girly
+* Trendy
+* Pinterest-inspired
+* TikTok-inspired
+* Study girl vibe
+
+Visual Inspiration:
+
+* Pinterest study aesthetic
+* Coquette aesthetic
+* Pink iOS widgets
+* Cute productivity apps
+* GoodNotes aesthetic
+* Lemon8 aesthetic
+* Studygram accounts
+
+Color Palette:
+Primary Pink: #FF7EB6
+Light Pink: #FFD6E7
+Pastel Pink: #FFF1F7
+Rose Pink: #FFB3D1
+Lavender Accent: #DCC6FF
+Cream White: #FFFDFC
+Text Primary: #2B2B2B
+Text Secondary: #8A8A8A
+
+Design Style:
+
+* Extremely soft UI
+* Large rounded corners (24px)
+* Floating cards
+* Light gradients
+* Glassmorphism accents
+* Cute stickers
+* Tiny sparkles
+* Tiny hearts
+* Tiny bows
+* Soft shadows
+
+Mascot:
+Keep the penguin.
+Transform it into a cute aesthetic version:
+
+* pink scarf
+* blush cheeks
+* adorable eyes
+* soft illustrations
+
+Components:
+
+* Cards should feel like aesthetic diary pages.
+* Progress bars should be pink gradients.
+* Achievement cards should feel rewarding.
+* Lesson cards should feel playful and motivating.
+* XP indicators should look cute and premium.
+
+Decorative Elements:
+
+* Hearts
+* Stars
+* Bows
+* Sparkles
+* Cute notebook stickers
+* Soft motivational doodles
+
+Microcopy Examples:
+
+* "You got this 💕"
+* "Let's study ✨"
+* "Good girl 🌸"
+* "Keep going 🎀"
+* "Almost there 💖"
+
+Animations:
+Use React Native Reanimated:
+
+* soft button bounce
+* card press animation
+* sparkle effects
+* achievement celebration
+* smooth page transitions
+
+DO NOT USE:
+
+* Dark colors
+* Aggressive contrast
+* Thick borders
+* Gamer aesthetics
+* Comic book style
+* Heavy shadows
+* Visual clutter
+
+The final feeling should be:
+
+"I opened the app and it feels like a cute pink Pinterest study planner that motivates me to prepare for exams."
+
+Create:
+
+* theme.ts
+* colors.ts
+* spacing.ts
+* typography.ts
+* reusable design tokens
+* reusable components
+
+Output production-ready React Native code.
+3. Добавить разнообразие в окне "цвета аватара"
+4. Починить размер шрифта, он не работает
+5. В окно информация добавить больше информации и перенести ее в профиль,а здесь удалить 
+

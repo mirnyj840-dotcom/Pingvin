@@ -1,7 +1,7 @@
-import THEMES, { ThemeColors } from "@/constants/themes";
-import { useApp } from "@/contexts/AppContext";
+import { useTheme } from "@/hooks/useTheme";
+import { ThemeColors } from "@/constants/themes";
 
 export function useAppColors(): ThemeColors {
-  const { settings } = useApp();
-  return THEMES[settings.theme].colors;
+  const { colors } = useTheme();
+  return colors;
 }

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -13,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path as SvgPath } from "react-native-svg";
 import { useApp } from "@/contexts/AppContext";
-import { useAppColors } from "@/hooks/useAppColors";
+import { useTheme } from "@/hooks/useTheme";
 import LessonNodeButton from "@/components/LessonNodeButton";
 import Mascot from "@/components/Mascot";
 import { chapters } from "@/data/curriculum";
@@ -32,11 +33,13 @@ function BezierConnector({
   toLeft,
   done,
   color,
+  trackColor,
 }: {
   fromLeft: boolean;
   toLeft: boolean;
   done: boolean;
   color: string;
+  trackColor: string;
 }) {
   const x0 = fromLeft ? LEFT_CENTER : RIGHT_CENTER;
   const x1 = toLeft ? LEFT_CENTER : RIGHT_CENTER;
@@ -50,7 +53,7 @@ function BezierConnector({
     <Svg width={CONTENT_W} height={CONNECTOR_H}>
       <SvgPath
         d={d}
-        stroke={done ? color : "#4b5563"}
+        stroke={done ? color : trackColor}
         strokeWidth={done ? 3.5 : 2.5}
         fill="none"
         strokeDasharray={done ? undefined : "9 7"}
@@ -62,7 +65,7 @@ function BezierConnector({
 }
 
 export default function PathScreen() {
-  const colors = useAppColors();
+  const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userStats, nodeStatus, settings } = useApp();
@@ -75,15 +78,19 @@ export default function PathScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: pt + 8 }]}>
         <View style={[styles.headerIconWrap, { backgroundColor: colors.primary + "22" }]}>
           <Feather name="map" size={18} color={colors.primary} />
         </View>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Путь</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground, fontSize: fs(20) }]}>
+          Путь
+        </Text>
         <View style={[styles.overallBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.overallText, { color: colors.primary }]}>{overallPct}%</Text>
-          <Text style={[styles.overallSub, { color: colors.mutedForeground }]}>
+          <Text style={[styles.overallText, { color: colors.primary, fontSize: fs(14) }]}>
+            {overallPct}%
+          </Text>
+          <Text style={[styles.overallSub, { color: colors.mutedForeground, fontSize: fs(10) }]}>
             {totalDone}/{totalNodes}
           </Text>
         </View>
@@ -108,12 +115,12 @@ export default function PathScreen() {
 
           return (
             <View key={chapter.id} style={styles.chapterSection}>
-              {/* ── Chapter Banner ── */}
+              {/* Chapter Banner — uses theme colors, no hardcoded dark values */}
               <LinearGradient
                 colors={
                   isUnlocked
                     ? [chapter.color + "28", chapter.color + "08"]
-                    : ["#1a1f2e", "#12151e"]
+                    : [colors.secondary, colors.card]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -163,13 +170,17 @@ export default function PathScreen() {
                         color: isUnlocked
                           ? colors.foreground
                           : colors.mutedForeground,
+                        fontSize: fs(14),
                       },
                     ]}
                   >
                     {chapter.title}
                   </Text>
                   <Text
-                    style={[styles.chapterDesc, { color: colors.subForeground }]}
+                    style={[
+                      styles.chapterDesc,
+                      { color: colors.subForeground, fontSize: fs(11) },
+                    ]}
                   >
                     {chapter.description}
                   </Text>
@@ -185,12 +196,12 @@ export default function PathScreen() {
                           : isUnlocked
                           ? colors.foreground
                           : colors.mutedForeground,
+                        fontSize: fs(14),
                       },
                     ]}
                   >
                     {pct}%
                   </Text>
-                  {/* Mini progress dots */}
                   <View style={styles.progressDots}>
                     {chapter.nodes.map((n) => {
                       const s = nodeStatus(n.id);
@@ -215,7 +226,7 @@ export default function PathScreen() {
                 </View>
               </LinearGradient>
 
-              {/* ── Nodes + Connectors ── */}
+              {/* Nodes + Connectors */}
               <View style={styles.nodesWrap}>
                 {chapter.nodes.map((node, idx) => {
                   const status = nodeStatus(node.id);
@@ -228,7 +239,6 @@ export default function PathScreen() {
 
                   return (
                     <View key={node.id}>
-                      {/* "Ты здесь!" mascot bubble above active node */}
                       {status === "active" && (
                         <View
                           style={[
@@ -247,11 +257,10 @@ export default function PathScreen() {
                                 { backgroundColor: chapter.color },
                               ]}
                             >
-                              <Mascot
-                                type={settings.mascot}
-                                size={26}
-                              />
-                              <Text style={styles.hereText}>Ты здесь!</Text>
+                              <Mascot type={settings.mascot} size={26} />
+                              <Text style={[styles.hereText, { fontSize: fs(12) }]}>
+                                Ты здесь!
+                              </Text>
                             </View>
                             <View
                               style={[
@@ -268,7 +277,6 @@ export default function PathScreen() {
                         </View>
                       )}
 
-                      {/* Node row */}
                       <View
                         style={[
                           styles.nodeRow,
@@ -291,13 +299,13 @@ export default function PathScreen() {
                         />
                       </View>
 
-                      {/* Bezier connector to next node */}
                       {next && (
                         <BezierConnector
                           fromLeft={isLeft}
                           toLeft={nextIsLeft}
                           done={connDone}
                           color={chapter.color}
+                          trackColor={colors.border}
                         />
                       )}
                     </View>
@@ -331,7 +339,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 20,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
@@ -342,8 +349,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  overallText: { fontSize: 14, fontWeight: "800", fontFamily: "Inter_700Bold" },
-  overallSub: { fontSize: 10, marginTop: 1 },
+  overallText: { fontWeight: "800", fontFamily: "Inter_700Bold" },
+  overallSub: { marginTop: 1 },
 
   content: { paddingHorizontal: CONTENT_PAD, paddingTop: 4, gap: 4 },
 
@@ -366,13 +373,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chapterName: {
-    fontSize: 14,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
-  chapterDesc: { fontSize: 11, marginTop: 2 },
+  chapterDesc: { marginTop: 2 },
   chapterRight: { alignItems: "flex-end", gap: 6 },
-  chapterPct: { fontSize: 14, fontWeight: "800", fontFamily: "Inter_700Bold" },
+  chapterPct: { fontWeight: "800", fontFamily: "Inter_700Bold" },
   progressDots: { flexDirection: "row", gap: 3 },
   progressDot: { width: 6, height: 6, borderRadius: 3 },
 
@@ -394,7 +400,6 @@ const styles = StyleSheet.create({
   },
   hereText: {
     color: "white",
-    fontSize: 12,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },

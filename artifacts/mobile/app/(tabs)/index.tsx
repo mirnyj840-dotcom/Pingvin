@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useApp } from "@/contexts/AppContext";
-import { useAppColors } from "@/hooks/useAppColors";
+import { useTheme } from "@/hooks/useTheme";
 import Mascot from "@/components/Mascot";
 import StatPill from "@/components/StatPill";
 import { chapters, findNode } from "@/data/curriculum";
@@ -66,7 +66,7 @@ function getDailyMessage(): string {
 }
 
 export default function HomeScreen() {
-  const colors = useAppColors();
+  const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userStats, settings, weekStreak, nextLessonId } = useApp();
@@ -85,6 +85,7 @@ export default function HomeScreen() {
   const completedChapters = chapters.filter((ch) =>
     ch.nodes.every((n) => userStats.completedNodeIds.includes(n.id))
   ).length;
+  const todayDow = (new Date().getDay() + 6) % 7;
 
   // Animated XP bar
   const xpAnim = useRef(new Animated.Value(0)).current;
@@ -96,11 +97,7 @@ export default function HomeScreen() {
       useNativeDriver: false,
     }).start();
   }, [xpProgress]);
-
-  const xpWidth = xpAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
+  const xpWidth = xpAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
 
   const handleStartLesson = async () => {
     if (!nextId) return;
@@ -111,15 +108,11 @@ export default function HomeScreen() {
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
 
-  // Figure out today's index in the week array (0=Mon … 6=Sun)
-  const todayDow = (new Date().getDay() + 6) % 7;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: pt + 8 }]}>
         <StatPill iconName="zap" value={`${userStats.streak} дн`} color={colors.amber} />
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+        <Text style={[styles.headerTitle, { color: colors.foreground, fontSize: fs(16) }]}>
           Главная
         </Text>
         <StatPill iconName="star" value={`${userStats.xp} XP`} color={colors.primary} />
@@ -130,86 +123,65 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: pb + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Mascot greeting card ── */}
-        <View
-          style={[
-            styles.mascotCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <Mascot type={settings.mascot} size={96} animated />
+        {/* Mascot greeting card */}
+        <View style={[styles.mascotCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Mascot type={settings.mascot} size={88} animated />
           <View style={styles.mascotText}>
-            <Text style={[styles.mascotGreeting, { color: colors.subForeground }]}>
+            <Text style={[styles.mascotGreeting, { color: colors.subForeground, fontSize: fs(12) }]}>
               {greeting}, {userStats.name}! 👋
             </Text>
-            <Text style={[styles.mascotMessage, { color: colors.foreground }]}>
+            <Text style={[styles.mascotMessage, { color: colors.foreground, fontSize: fs(14) }]}>
               {message}
             </Text>
             <View style={styles.levelRow}>
-              <Text style={[styles.levelLabel, { color: colors.primary }]}>
+              <Text style={[styles.levelLabel, { color: colors.primary, fontSize: fs(12) }]}>
                 Ур.{level}
               </Text>
               <View style={[styles.xpBar, { backgroundColor: colors.track }]}>
-                <Animated.View
-                  style={[
-                    styles.xpFill,
-                    { backgroundColor: colors.primary, width: xpWidth },
-                  ]}
-                />
+                <Animated.View style={[styles.xpFill, { backgroundColor: colors.primary, width: xpWidth }]} />
               </View>
-              <Text style={[styles.xpHint, { color: colors.mutedForeground }]}>
-                {xpToNext} XP
-              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: fs(11) }}>{xpToNext} XP</Text>
             </View>
-            <Text style={[styles.xpToNext, { color: colors.mutedForeground }]}>
+            <Text style={{ color: colors.mutedForeground, fontSize: fs(11), marginTop: 2 }}>
               Ещё {xpToNext} XP до Ур.{level + 1}
             </Text>
           </View>
         </View>
 
-        {/* ── Next lesson card ── */}
+        {/* Next lesson card */}
         {nextNode ? (
-          <TouchableOpacity
-            onPress={handleStartLesson}
-            activeOpacity={0.85}
-            style={styles.nextCardWrap}
-          >
+          <TouchableOpacity onPress={handleStartLesson} activeOpacity={0.85}
+            style={[styles.nextCardWrap, { borderRadius: colors.radius }]}>
             <LinearGradient
               colors={
-                nextNode.type === "boss"
-                  ? ["#be123c", "#9f1239"]
-                  : nextNode.type === "practice"
-                  ? ["#0e7490", "#155e75"]
-                  : nextNode.type === "theory"
-                  ? ["#4338ca", "#3730a3"]
+                nextNode.type === "boss" ? ["#be123c", "#9f1239"]
+                  : nextNode.type === "practice" ? ["#0e7490", "#155e75"]
+                  : nextNode.type === "theory" ? ["#4338ca", "#3730a3"]
                   : [colors.primary, colors.primary + "CC"]
               }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.nextCard}
             >
               <View style={styles.nextCardLeft}>
                 <View style={styles.nextTypeRow}>
                   <View style={styles.nextTypeBadge}>
-                    <Feather
-                      name={TYPE_ICON[nextNode.type] ?? "circle"}
-                      size={12}
-                      color="rgba(255,255,255,0.9)"
-                    />
-                    <Text style={styles.nextTypeText}>
+                    <Feather name={TYPE_ICON[nextNode.type] ?? "circle"} size={12} color="rgba(255,255,255,0.9)" />
+                    <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: fs(11), fontWeight: "600" }}>
                       {TYPE_LABEL[nextNode.type]}
                     </Text>
                   </View>
                   <View style={styles.xpBadge}>
                     <Feather name="zap" size={11} color="#fde68a" />
-                    <Text style={styles.xpBadgeText}>+{nextNode.xpReward} XP</Text>
+                    <Text style={{ color: "#fde68a", fontSize: fs(11), fontWeight: "700" }}>
+                      +{nextNode.xpReward} XP
+                    </Text>
                   </View>
                 </View>
-                <Text style={styles.nextTitle} numberOfLines={2}>
+                <Text style={{ color: "white", fontSize: fs(16), fontWeight: "700", lineHeight: fs(16) * 1.35 }} numberOfLines={2}>
                   {nextNode.theoryTitle ?? nextNode.label}
                 </Text>
                 {nextNode.questions && (
-                  <Text style={styles.nextSub}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: fs(12) }}>
                     {nextNode.questions.length} вопросов
                   </Text>
                 )}
@@ -220,204 +192,116 @@ export default function HomeScreen() {
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <View
-            style={[
-              styles.courseCompleteCard,
-              { backgroundColor: colors.green + "18", borderColor: colors.green + "35" },
-            ]}
-          >
+          <View style={[styles.courseCompleteCard, { backgroundColor: colors.green + "18", borderColor: colors.green + "35", borderRadius: colors.radius }]}>
             <Feather name="award" size={28} color={colors.green} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.courseCompleteTitle, { color: colors.foreground }]}>
-                Курс пройден!
-              </Text>
-              <Text style={[styles.courseCompleteSub, { color: colors.subForeground }]}>
-                Ты прошёл все уроки. Так держать 🎉
-              </Text>
+              <Text style={[styles.courseCompleteTitle, { color: colors.foreground, fontSize: fs(16) }]}>Курс пройден!</Text>
+              <Text style={{ color: colors.subForeground, fontSize: fs(13), marginTop: 2 }}>Ты прошёл все уроки. Так держать 🎉</Text>
             </View>
           </View>
         )}
 
-        {/* ── Daily Goal ── */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Daily Goal */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.sectionHeader}>
             <Feather name="target" size={16} color={colors.amber} />
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Дневная цель
-            </Text>
-            <Text style={[styles.sectionValue, { color: colors.amber }]}>
-              {userStats.dailyXp} / {goal} XP
-            </Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: fs(14) }]}>Дневная цель</Text>
+            <Text style={{ color: colors.amber, fontSize: fs(14), fontWeight: "700" }}>{userStats.dailyXp} / {goal} XP</Text>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: colors.track }]}>
             <LinearGradient
               colors={[colors.amber, colors.amber + "88"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[
-                styles.progressFill,
-                { width: `${dailyProgress * 100}%` },
-              ]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: `${dailyProgress * 100}%` }]}
             />
           </View>
           {userStats.dailyXp >= goal ? (
-            <View style={styles.goalRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Feather name="check-circle" size={14} color={colors.green} />
-              <Text style={[styles.goalText, { color: colors.green }]}>
-                Цель выполнена! 🎉
-              </Text>
+              <Text style={{ color: colors.green, fontSize: fs(12), fontWeight: "600" }}>Цель выполнена! 🎉</Text>
             </View>
           ) : (
-            <Text style={[styles.goalHint, { color: colors.mutedForeground }]}>
+            <Text style={{ color: colors.mutedForeground, fontSize: fs(12) }}>
               Ещё {goal - userStats.dailyXp} XP для выполнения цели
             </Text>
           )}
         </View>
 
-        {/* ── Week Streak ── */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Week Streak */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionIcon}>🔥</Text>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Стрик недели
-            </Text>
-            <Text style={[styles.sectionValue, { color: colors.red }]}>
-              {userStats.streak} дней 🔥
-            </Text>
+            <Text style={{ fontSize: fs(16) }}>🔥</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: fs(14) }]}>Стрик недели</Text>
+            <Text style={{ color: colors.red, fontSize: fs(14), fontWeight: "700" }}>{userStats.streak} дней 🔥</Text>
           </View>
           <View style={styles.weekRow}>
             {streak.map((active, i) => {
               const isToday = i === todayDow;
               return (
                 <View key={i} style={styles.dayItem}>
-                  <View
-                    style={[
-                      styles.dayDot,
-                      {
-                        backgroundColor: active
-                          ? colors.red + "22"
-                          : colors.track,
-                        borderColor: isToday
-                          ? colors.primary
-                          : active
-                          ? colors.red
-                          : colors.border,
-                        borderWidth: isToday ? 2.5 : 1.5,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.dayEmoji}>
-                      {active ? "🔥" : "○"}
-                    </Text>
+                  <View style={[styles.dayDot, {
+                    backgroundColor: active ? colors.red + "22" : colors.track,
+                    borderColor: isToday ? colors.primary : active ? colors.red : colors.border,
+                    borderWidth: isToday ? 2.5 : 1.5,
+                  }]}>
+                    <Text style={{ fontSize: active ? 16 : 13, lineHeight: 20 }}>{active ? "🔥" : "○"}</Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.dayLabel,
-                      { color: active ? colors.foreground : colors.mutedForeground },
-                    ]}
-                  >
+                  <Text style={{ fontSize: fs(11), fontWeight: "500", color: active ? colors.foreground : colors.mutedForeground }}>
                     {DAYS[i]}
                   </Text>
                 </View>
               );
             })}
           </View>
-          {userStats.longestStreak > 0 && (
-            <Text style={[styles.recordText, { color: colors.mutedForeground }]}>
+          {(userStats.longestStreak ?? 0) > 0 && (
+            <Text style={{ color: colors.mutedForeground, fontSize: fs(12), textAlign: "center", marginTop: 2 }}>
               Рекорд: {userStats.longestStreak} {userStats.longestStreak === 1 ? "день" : "дней"} 🏆
             </Text>
           )}
         </View>
 
-        {/* ── Stats 2×2 ── */}
+        {/* Stats 2×2 */}
         <View style={styles.statsGrid}>
-          <StatCard
-            label="Глав пройдено"
-            value={`${completedChapters}/${chapters.length}`}
-            iconName="map"
-            color={colors.green}
-            colors={colors}
-          />
-          <StatCard
-            label="Точность"
-            value={
-              userStats.totalAnswers > 0
-                ? `${Math.round((userStats.correctAnswers / userStats.totalAnswers) * 100)}%`
-                : "—"
-            }
-            iconName="target"
-            color={colors.amber}
-            colors={colors}
-          />
-          <StatCard
-            label="Заданий"
-            value={`${userStats.solvedTasks}`}
-            iconName="check-circle"
-            color={colors.primary}
-            colors={colors}
-          />
-          <StatCard
-            label="Лига"
-            value={LEAGUE_NAMES[userStats.league - 1]}
-            iconName="award"
-            color={LEAGUE_COLORS[userStats.league - 1]}
-            colors={colors}
-          />
+          {[
+            { label: "Глав пройдено", value: `${completedChapters}/${chapters.length}`, icon: "map" as const, color: colors.green },
+            { label: "Точность", value: userStats.totalAnswers > 0 ? `${Math.round((userStats.correctAnswers / userStats.totalAnswers) * 100)}%` : "—", icon: "target" as const, color: colors.amber },
+            { label: "Заданий", value: `${userStats.solvedTasks}`, icon: "check-circle" as const, color: colors.primary },
+            { label: "Лига", value: LEAGUE_NAMES[userStats.league - 1], icon: "award" as const, color: LEAGUE_COLORS[userStats.league - 1] },
+          ].map((s) => (
+            <View key={s.label} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.statIcon, { backgroundColor: s.color + "20" }]}>
+                <Feather name={s.icon} size={18} color={s.color} />
+              </View>
+              <Text style={{ fontSize: fs(20), fontWeight: "800", color: colors.foreground }}>{s.value}</Text>
+              <Text style={{ fontSize: fs(12), color: colors.subForeground }}>{s.label}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* ── Chapter progress strip ── */}
+        {/* Chapter progress */}
         <View style={styles.chapterStrip}>
-          <Text style={[styles.stripTitle, { color: colors.foreground }]}>
+          <Text style={{ fontSize: fs(15), fontWeight: "700", color: colors.foreground, marginBottom: 2 }}>
             Прогресс по разделам
           </Text>
           {chapters.map((ch) => {
-            const done = ch.nodes.filter((n) =>
-              userStats.completedNodeIds.includes(n.id)
-            ).length;
+            const done = ch.nodes.filter((n) => userStats.completedNodeIds.includes(n.id)).length;
             const pct = done / ch.nodes.length;
             return (
               <View key={ch.id} style={styles.chapterRow}>
-                <View
-                  style={[
-                    styles.chapterDot,
-                    { backgroundColor: ch.color + "30" },
-                  ]}
-                >
-                  <Feather
-                    name={ch.iconName as any}
-                    size={13}
-                    color={ch.color}
-                  />
+                <View style={[styles.chapterDot, { backgroundColor: ch.color + "30" }]}>
+                  <Feather name={ch.iconName as any} size={13} color={ch.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.chapterMeta}>
-                    <Text
-                      style={[
-                        styles.chapterTitle,
-                        { color: colors.foreground },
-                      ]}
-                      numberOfLines={1}
-                    >
+                    <Text style={{ fontSize: fs(13), fontWeight: "600", color: colors.foreground, flex: 1 }} numberOfLines={1}>
                       {ch.title}
                     </Text>
-                    <Text
-                      style={[
-                        styles.chapterPct,
-                        { color: pct === 1 ? colors.green : colors.subForeground },
-                      ]}
-                    >
+                    <Text style={{ fontSize: fs(12), fontWeight: "700", color: pct === 1 ? colors.green : colors.subForeground }}>
                       {done}/{ch.nodes.length}
                     </Text>
                   </View>
-                  <View
-                    style={[styles.chapterBar, { backgroundColor: colors.track }]}
-                  >
-                    <View
-                      style={[
-                        styles.chapterFill,
-                        { backgroundColor: ch.color, width: `${pct * 100}%` },
-                      ]}
-                    />
+                  <View style={[styles.chapterBar, { backgroundColor: colors.track }]}>
+                    <View style={[styles.chapterFill, { backgroundColor: ch.color, width: `${pct * 100}%` }]} />
                   </View>
                 </View>
               </View>
@@ -429,204 +313,49 @@ export default function HomeScreen() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  iconName,
-  color,
-  colors,
-}: {
-  label: string;
-  value: string;
-  iconName: keyof typeof Feather.glyphMap;
-  color: string;
-  colors: ReturnType<typeof useAppColors>;
-}) {
-  return (
-    <View
-      style={[
-        styles.statCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      <View style={[styles.statIcon, { backgroundColor: color + "20" }]}>
-        <Feather name={iconName} size={18} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.subForeground }]}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  headerTitle: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 12 },
+  headerTitle: { fontWeight: "700", fontFamily: "Inter_700Bold" },
   content: { paddingHorizontal: 20, gap: 14 },
 
-  mascotCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 18,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
+  mascotCard: { flexDirection: "row", alignItems: "center", gap: 16, padding: 18, borderWidth: 1 },
   mascotText: { flex: 1, gap: 4 },
-  mascotGreeting: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  mascotMessage: {
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 20,
-    fontFamily: "Inter_600SemiBold",
-  },
+  mascotGreeting: { fontFamily: "Inter_500Medium" },
+  mascotMessage: { fontWeight: "600", lineHeight: 22, fontFamily: "Inter_600SemiBold" },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
-  levelLabel: { fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  levelLabel: { fontWeight: "700", fontFamily: "Inter_700Bold" },
   xpBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   xpFill: { height: "100%", borderRadius: 3 },
-  xpHint: { fontSize: 11 },
-  xpToNext: { fontSize: 11, marginTop: 2 },
 
-  nextCardWrap: { borderRadius: 20, overflow: "hidden" },
-  nextCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 18,
-    gap: 14,
-  },
+  nextCardWrap: { overflow: "hidden" },
+  nextCard: { flexDirection: "row", alignItems: "center", padding: 18, gap: 14 },
   nextCardLeft: { flex: 1, gap: 6 },
   nextTypeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  nextTypeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  nextTypeText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  xpBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(0,0,0,0.2)",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  xpBadgeText: { color: "#fde68a", fontSize: 11, fontWeight: "700" },
-  nextTitle: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    lineHeight: 22,
-  },
-  nextSub: { color: "rgba(255,255,255,0.7)", fontSize: 12 },
-  nextPlayButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  nextTypeBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  xpBadge: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(0,0,0,0.2)", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  nextPlayButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
 
-  courseCompleteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 18,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  courseCompleteTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
-  courseCompleteSub: { fontSize: 13, marginTop: 2 },
+  courseCompleteCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderWidth: 1 },
+  courseCompleteTitle: { fontWeight: "700", fontFamily: "Inter_700Bold" },
 
-  section: { padding: 16, borderRadius: 18, borderWidth: 1, gap: 12 },
+  section: { padding: 16, borderWidth: 1, gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionIcon: { fontSize: 16 },
-  sectionTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
-  sectionValue: { fontSize: 14, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  sectionTitle: { flex: 1, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   progressTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 4 },
-  goalRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  goalText: { fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  goalHint: { fontSize: 12 },
   weekRow: { flexDirection: "row", justifyContent: "space-between" },
   dayItem: { alignItems: "center", gap: 6 },
-  dayDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayEmoji: { fontSize: 16 },
-  dayLabel: { fontSize: 11, fontWeight: "500" },
-  recordText: { fontSize: 12, textAlign: "center", marginTop: 2 },
+  dayDot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  statCard: {
-    flexBasis: "48%",
-    flexGrow: 1,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 6,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statValue: { fontSize: 20, fontWeight: "800", fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 12 },
+  statCard: { flexBasis: "48%", flexGrow: 1, padding: 14, borderWidth: 1, gap: 6 },
+  statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 
   chapterStrip: { gap: 12 },
-  stripTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
   chapterRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  chapterDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chapterMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 5,
-  },
-  chapterTitle: { fontSize: 13, fontWeight: "600", flex: 1 },
-  chapterPct: { fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  chapterDot: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  chapterMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 5 },
   chapterBar: { height: 5, borderRadius: 3, overflow: "hidden" },
   chapterFill: { height: "100%", borderRadius: 3 },
 });
