@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
+import { fisherYatesShuffle } from "@/utils/shuffle";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -60,6 +61,13 @@ export default function LessonScreen() {
   const isTheory = node?.type === "theory";
   const currentQ = questions[questionIdx];
   const totalQ = questions.length;
+
+  // Pre-shuffle all question option orders once per session
+  const shuffledOptionsByIdx = useMemo(
+    () => questions.map((q) => fisherYatesShuffle(q.options)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeId]
+  );
 
   useEffect(() => {
     if (totalQ > 0) {
@@ -235,7 +243,7 @@ export default function LessonScreen() {
             </Text>
 
             <View style={styles.optionsContainer}>
-              {currentQ.options.map((opt, oi) => {
+              {(shuffledOptionsByIdx[questionIdx] ?? currentQ.options).map((opt, oi) => {
                 const isSelected = selected === opt;
                 const isCorrect = opt === currentQ.correct;
                 let borderColor = colors.border;

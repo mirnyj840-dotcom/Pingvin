@@ -7,6 +7,7 @@ export interface Achievement {
   isUnlocked: (stats: {
     xp: number;
     streak: number;
+    longestStreak?: number;
     solvedTasks: number;
     correctAnswers: number;
     totalAnswers: number;
@@ -25,7 +26,7 @@ export const achievements: Achievement[] = [
   },
   {
     id: "streak_3",
-    iconName: "flame",
+    iconName: "zap",
     iconColor: "#EF4444",
     label: "3 дня подряд",
     description: "Заниматься 3 дня без перерыва",
@@ -33,15 +34,23 @@ export const achievements: Achievement[] = [
   },
   {
     id: "streak_7",
-    iconName: "flame",
+    iconName: "zap",
     iconColor: "#DC2626",
     label: "Неделя силы",
     description: "Заниматься 7 дней подряд",
     isUnlocked: ({ streak }) => streak >= 7,
   },
   {
-    id: "xp_100",
+    id: "streak_30",
     iconName: "zap",
+    iconColor: "#B91C1C",
+    label: "Марафонец",
+    description: "Заниматься 30 дней подряд",
+    isUnlocked: ({ streak }) => streak >= 30,
+  },
+  {
+    id: "xp_100",
+    iconName: "award",
     iconColor: "#6366F1",
     label: "100 XP",
     description: "Набрать 100 опыта",
@@ -49,7 +58,7 @@ export const achievements: Achievement[] = [
   },
   {
     id: "xp_500",
-    iconName: "zap",
+    iconName: "award",
     iconColor: "#4F46E5",
     label: "500 XP",
     description: "Набрать 500 опыта",
@@ -68,9 +77,18 @@ export const achievements: Achievement[] = [
     iconName: "target",
     iconColor: "#10B981",
     label: "Снайпер",
-    description: "Точность более 90%",
+    description: "Точность 90%+ на 10+ вопросах",
     isUnlocked: ({ correctAnswers, totalAnswers }) =>
       totalAnswers >= 10 && correctAnswers / totalAnswers >= 0.9,
+  },
+  {
+    id: "accuracy_100",
+    iconName: "target",
+    iconColor: "#059669",
+    label: "Отличник",
+    description: "100% точность на 5+ вопросах",
+    isUnlocked: ({ correctAnswers, totalAnswers }) =>
+      totalAnswers >= 5 && correctAnswers === totalAnswers,
   },
   {
     id: "tasks_10",
@@ -89,7 +107,15 @@ export const achievements: Achievement[] = [
     isUnlocked: ({ solvedTasks }) => solvedTasks >= 50,
   },
   {
-    id: "chapter_1",
+    id: "tasks_100",
+    iconName: "check-circle",
+    iconColor: "#1D4ED8",
+    label: "100 заданий",
+    description: "Решить 100 заданий",
+    isUnlocked: ({ solvedTasks }) => solvedTasks >= 100,
+  },
+  {
+    id: "chapter_numbers",
     iconName: "book",
     iconColor: "#6366F1",
     label: "Числовой мастер",
@@ -98,5 +124,40 @@ export const achievements: Achievement[] = [
       ["numbers_theory", "numbers_quiz", "numbers_boss"].every((id) =>
         completedNodeIds.includes(id)
       ),
+  },
+  {
+    id: "chapter_algebra",
+    iconName: "book",
+    iconColor: "#8B5CF6",
+    label: "Алгебраист",
+    description: "Пройти главу «Алгебра»",
+    isUnlocked: ({ completedNodeIds }) =>
+      ["algebra_theory", "algebra_quiz", "algebra_boss"].every((id) =>
+        completedNodeIds.includes(id)
+      ),
+  },
+  {
+    id: "chapter_geometry",
+    iconName: "book",
+    iconColor: "#3B82F6",
+    label: "Геометр",
+    description: "Пройти главу «Геометрия»",
+    isUnlocked: ({ completedNodeIds }) =>
+      ["geo_theory", "geo_quiz"].every((id) =>
+        completedNodeIds.includes(id)
+      ),
+  },
+  {
+    id: "five_chapters",
+    iconName: "map",
+    iconColor: "#EC4899",
+    label: "Исследователь",
+    description: "Начать 5 разных глав",
+    isUnlocked: ({ completedNodeIds }) => {
+      const started = new Set(
+        completedNodeIds.map((id) => id.split("_")[0])
+      );
+      return started.size >= 5;
+    },
   },
 ];

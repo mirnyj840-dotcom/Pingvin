@@ -10,14 +10,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { chapters } from "@/data/curriculum";
 
 export type MascotType = "penguin" | "raccoon" | "bear";
-export type ThemeId = "space" | "noir" | "nordic" | "dawn";
+export type ThemeId = "space" | "classic" | "pink" | "dawn";
 export type FontSize = "small" | "medium" | "large";
+export type DailyXpGoal = 25 | 50 | 100 | 150;
 
 export interface AppSettings {
   theme: ThemeId;
   fontSize: FontSize;
   mascot: MascotType;
   avatarColor: string;
+  dailyXpGoal: DailyXpGoal;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
 }
 
 export interface UserStats {
@@ -26,6 +30,7 @@ export interface UserStats {
   isLoaded: boolean;
   xp: number;
   streak: number;
+  longestStreak: number;
   completedNodeIds: string[];
   unlockedAchievementIds: string[];
   dailyXp: number;
@@ -44,7 +49,6 @@ export interface LessonResult {
   xpEarned: number;
   passed: boolean;
   alreadyDone: boolean;
-  /** true if this was the first successful lesson today (show streak animation) */
   isStreakDay: boolean;
 }
 
@@ -66,13 +70,16 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-const STORAGE_KEY = "oge_app_v2";
+const STORAGE_KEY = "oge_app_v3";
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "space",
   fontSize: "medium",
   mascot: "penguin",
   avatarColor: "#6366F1",
+  dailyXpGoal: 50,
+  soundEnabled: true,
+  vibrationEnabled: true,
 };
 
 const DEFAULT_STATS: UserStats = {
@@ -81,6 +88,7 @@ const DEFAULT_STATS: UserStats = {
   isLoaded: false,
   xp: 0,
   streak: 0,
+  longestStreak: 0,
   completedNodeIds: [],
   unlockedAchievementIds: [],
   dailyXp: 0,
@@ -103,16 +111,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function loadData() {
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      // Try new key first
+      let raw = await AsyncStorage.getItem(STORAGE_KEY);
+      // Fall back to old key to migrate existing users
+      if (!raw) {
+        raw = await AsyncStorage.getItem("oge_app_v2");
+      }
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved.stats) {
-          setUserStats({ ...DEFAULT_STATS, ...saved.stats, isLoaded: true });
+          const stats = { ...DEFAULT_STATS, ...saved.stats, isLoaded: true };
+          // Migrate old theme ids
+          setUserStats(stats);
         } else {
           setUserStats((s) => ({ ...s, isLoaded: true }));
         }
         if (saved.settings) {
-          setSettings({ ...DEFAULT_SETTINGS, ...saved.settings });
+          const savedSettings = { ...DEFAULT_SETTINGS, ...saved.settings };
+          // Migrate old theme ids to new ones
+          if (savedSettings.theme === "noir") savedSettings.theme = "classic";
+          if (savedSettings.theme === "nordic") savedSettings.theme = "pink";
+          setSettings(savedSettings);
         }
       } else {
         setUserStats((s) => ({ ...s, isLoaded: true }));
@@ -200,7 +219,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 80% pass threshold (strict — ensures the topic is truly understood)
     const passed = total === 0 || correct / total >= 0.8;
     const xpEarned = passed ? xpReward : Math.floor(xpReward * 0.15);
 
@@ -224,6 +242,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       newStreak = hadYesterday ? userStats.streak + 1 : 1;
     }
 
+    const newLongestStreak = Math.max(userStats.longestStreak, newStreak);
+
     const newXp = userStats.xp + xpEarned;
     let newLeague = userStats.league;
     if (newXp >= 2000) newLeague = 5;
@@ -239,6 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...userStats,
       xp: newXp,
       streak: newStreak,
+      longestStreak: newLongestStreak,
       completedNodeIds: newCompletedIds,
       dailyXp,
       dailyXpDate: today,
@@ -252,9 +273,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUserStats(newStats);
     await saveData(newStats, settings);
 
-    // isStreakDay = first successful lesson of today
     const isStreakDay = passed && !hadToday;
-
     return { correct, total, xpEarned, passed, alreadyDone: false, isStreakDay };
   }
 
@@ -288,6 +307,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUserStats(newStats);
     setSettings(DEFAULT_SETTINGS);
     await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem("oge_app_v2");
   }
 
   return (

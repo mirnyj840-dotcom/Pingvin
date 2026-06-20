@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,11 +21,19 @@ import { chapters, findNode } from "@/data/curriculum";
 
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-const MASCOT_MESSAGES = [
-  "Сегодня отличный день для учёбы!",
+const DAILY_MESSAGES = [
+  "Один урок в день — и ОГЭ будет сдан!",
   "Давай покорим новую тему вместе!",
   "Ты молодец, продолжай в том же духе!",
-  "Один урок в день — и ОГЭ будет сдан!",
+  "Знания — твоё главное оружие на экзамене!",
+  "Сегодня ты на шаг ближе к пятёрке!",
+  "Повторение — мать учения. Вперёд!",
+  "Каждый правильный ответ — это победа!",
+  "Не останавливайся, ты делаешь отлично!",
+  "Математика — это логика, и у тебя она есть!",
+  "Сложности временны, а знания навсегда!",
+  "Твой мозг сейчас растёт — буквально!",
+  "Маленький шаг сегодня — большой результат в июне!",
 ];
 
 const TYPE_LABEL: Record<string, string> = {
@@ -42,6 +51,20 @@ const TYPE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
 const LEAGUE_NAMES = ["Бронза", "Серебро", "Золото", "Платина", "Алмаз"];
 const LEAGUE_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E5E4E2", "#B9F2FF"];
 
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Доброе утро";
+  if (h < 18) return "Добрый день";
+  return "Добрый вечер";
+}
+
+function getDailyMessage(): string {
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  return DAILY_MESSAGES[dayOfYear % DAILY_MESSAGES.length];
+}
+
 export default function HomeScreen() {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
@@ -52,13 +75,32 @@ export default function HomeScreen() {
   const nextId = nextLessonId();
   const nextNode = nextId ? findNode(nextId) : null;
   const level = Math.floor(userStats.xp / 100) + 1;
-  const xpToNext = level * 100 - userStats.xp;
-  const xpProgress = (userStats.xp % 100) / 100;
-  const dailyProgress = Math.min(userStats.dailyXp / 50, 1);
-  const message = MASCOT_MESSAGES[userStats.solvedTasks % MASCOT_MESSAGES.length];
+  const xpInLevel = userStats.xp % 100;
+  const xpToNext = 100 - xpInLevel;
+  const xpProgress = xpInLevel / 100;
+  const goal = settings.dailyXpGoal ?? 50;
+  const dailyProgress = Math.min(userStats.dailyXp / goal, 1);
+  const greeting = getGreeting();
+  const message = getDailyMessage();
   const completedChapters = chapters.filter((ch) =>
     ch.nodes.every((n) => userStats.completedNodeIds.includes(n.id))
   ).length;
+
+  // Animated XP bar
+  const xpAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(xpAnim, {
+      toValue: xpProgress,
+      duration: 700,
+      delay: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [xpProgress]);
+
+  const xpWidth = xpAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
 
   const handleStartLesson = async () => {
     if (!nextId) return;
@@ -68,6 +110,9 @@ export default function HomeScreen() {
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+
+  // Figure out today's index in the week array (0=Mon … 6=Sun)
+  const todayDow = (new Date().getDay() + 6) % 7;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -95,7 +140,7 @@ export default function HomeScreen() {
           <Mascot type={settings.mascot} size={96} animated />
           <View style={styles.mascotText}>
             <Text style={[styles.mascotGreeting, { color: colors.subForeground }]}>
-              Привет, {userStats.name}! 👋
+              {greeting}, {userStats.name}! 👋
             </Text>
             <Text style={[styles.mascotMessage, { color: colors.foreground }]}>
               {message}
@@ -105,17 +150,20 @@ export default function HomeScreen() {
                 Ур.{level}
               </Text>
               <View style={[styles.xpBar, { backgroundColor: colors.track }]}>
-                <View
+                <Animated.View
                   style={[
                     styles.xpFill,
-                    { backgroundColor: colors.primary, width: `${xpProgress * 100}%` },
+                    { backgroundColor: colors.primary, width: xpWidth },
                   ]}
                 />
               </View>
               <Text style={[styles.xpHint, { color: colors.mutedForeground }]}>
-                −{xpToNext}XP
+                {xpToNext} XP
               </Text>
             </View>
+            <Text style={[styles.xpToNext, { color: colors.mutedForeground }]}>
+              Ещё {xpToNext} XP до Ур.{level + 1}
+            </Text>
           </View>
         </View>
 
@@ -198,7 +246,7 @@ export default function HomeScreen() {
               Дневная цель
             </Text>
             <Text style={[styles.sectionValue, { color: colors.amber }]}>
-              {userStats.dailyXp} / 50 XP
+              {userStats.dailyXp} / {goal} XP
             </Text>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: colors.track }]}>
@@ -212,16 +260,16 @@ export default function HomeScreen() {
               ]}
             />
           </View>
-          {userStats.dailyXp >= 50 ? (
+          {userStats.dailyXp >= goal ? (
             <View style={styles.goalRow}>
               <Feather name="check-circle" size={14} color={colors.green} />
               <Text style={[styles.goalText, { color: colors.green }]}>
-                Цель выполнена — отличная работа!
+                Цель выполнена! 🎉
               </Text>
             </View>
           ) : (
             <Text style={[styles.goalHint, { color: colors.mutedForeground }]}>
-              Ещё {50 - userStats.dailyXp} XP для выполнения цели
+              Ещё {goal - userStats.dailyXp} XP для выполнения цели
             </Text>
           )}
         </View>
@@ -229,7 +277,7 @@ export default function HomeScreen() {
         {/* ── Week Streak ── */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sectionHeader}>
-            <Feather name="activity" size={16} color={colors.red} />
+            <Text style={styles.sectionIcon}>🔥</Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               Стрик недели
             </Text>
@@ -238,30 +286,47 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.weekRow}>
-            {streak.map((active, i) => (
-              <View key={i} style={styles.dayItem}>
-                <View
-                  style={[
-                    styles.dayDot,
-                    {
-                      backgroundColor: active ? colors.primary : colors.track,
-                      borderColor: active ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  {active && <Feather name="check" size={12} color="white" />}
+            {streak.map((active, i) => {
+              const isToday = i === todayDow;
+              return (
+                <View key={i} style={styles.dayItem}>
+                  <View
+                    style={[
+                      styles.dayDot,
+                      {
+                        backgroundColor: active
+                          ? colors.red + "22"
+                          : colors.track,
+                        borderColor: isToday
+                          ? colors.primary
+                          : active
+                          ? colors.red
+                          : colors.border,
+                        borderWidth: isToday ? 2.5 : 1.5,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.dayEmoji}>
+                      {active ? "🔥" : "○"}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.dayLabel,
+                      { color: active ? colors.foreground : colors.mutedForeground },
+                    ]}
+                  >
+                    {DAYS[i]}
+                  </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.dayLabel,
-                    { color: active ? colors.foreground : colors.mutedForeground },
-                  ]}
-                >
-                  {DAYS[i]}
-                </Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
+          {userStats.longestStreak > 0 && (
+            <Text style={[styles.recordText, { color: colors.mutedForeground }]}>
+              Рекорд: {userStats.longestStreak} {userStats.longestStreak === 1 ? "день" : "дней"} 🏆
+            </Text>
+          )}
         </View>
 
         {/* ── Stats 2×2 ── */}
@@ -426,6 +491,7 @@ const styles = StyleSheet.create({
   xpBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   xpFill: { height: "100%", borderRadius: 3 },
   xpHint: { fontSize: 11 },
+  xpToNext: { fontSize: 11, marginTop: 2 },
 
   nextCardWrap: { borderRadius: 20, overflow: "hidden" },
   nextCard: {
@@ -494,6 +560,7 @@ const styles = StyleSheet.create({
 
   section: { padding: 16, borderRadius: 18, borderWidth: 1, gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sectionIcon: { fontSize: 16 },
   sectionTitle: {
     flex: 1,
     fontSize: 14,
@@ -512,11 +579,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
+  dayEmoji: { fontSize: 16 },
   dayLabel: { fontSize: 11, fontWeight: "500" },
+  recordText: { fontSize: 12, textAlign: "center", marginTop: 2 },
 
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statCard: {

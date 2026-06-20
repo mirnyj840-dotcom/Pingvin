@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -15,7 +16,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import Mascot, { MascotType } from "@/components/Mascot";
 import THEMES, { ThemeId } from "@/constants/themes";
-import type { FontSize } from "@/contexts/AppContext";
+import type { FontSize, DailyXpGoal } from "@/contexts/AppContext";
 
 const MASCOT_OPTIONS: { type: MascotType; name: string }[] = [
   { type: "penguin", name: "Пингвин" },
@@ -24,27 +25,37 @@ const MASCOT_OPTIONS: { type: MascotType; name: string }[] = [
 ];
 
 const FONT_SIZES: { id: FontSize; label: string; size: number }[] = [
-  { id: "small", label: "Маленький", size: 13 },
-  { id: "medium", label: "Средний", size: 16 },
-  { id: "large", label: "Большой", size: 19 },
+  { id: "small", label: "Маленький", size: 12 },
+  { id: "medium", label: "Средний", size: 15 },
+  { id: "large", label: "Большой", size: 18 },
+];
+
+const DAILY_GOALS: { value: DailyXpGoal; label: string }[] = [
+  { value: 25, label: "25 XP" },
+  { value: 50, label: "50 XP" },
+  { value: 100, label: "100 XP" },
+  { value: 150, label: "150 XP" },
 ];
 
 const AVATAR_COLORS = [
   "#6366F1",
+  "#8B5CF6",
   "#EC4899",
+  "#FF7EB6",
   "#F59E0B",
+  "#FF8A3D",
   "#10B981",
+  "#14B8A6",
   "#3B82F6",
   "#EF4444",
-  "#8B5CF6",
-  "#14B8A6",
+  "#D97706",
+  "#059669",
 ];
 
 export default function SettingsScreen() {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings, userStats, resetProgress } = useApp();
-  const [confirmReset, setConfirmReset] = useState(false);
+  const { settings, updateSettings, resetProgress } = useApp();
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
@@ -67,6 +78,11 @@ export default function SettingsScreen() {
   const handleAvatarColor = async (color: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await updateSettings({ avatarColor: color });
+  };
+
+  const handleDailyGoal = async (goal: DailyXpGoal) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await updateSettings({ dailyXpGoal: goal });
   };
 
   const handleReset = () => {
@@ -173,6 +189,49 @@ export default function SettingsScreen() {
           </View>
         </SectionCard>
 
+        {/* Daily Goal */}
+        <SectionCard title="Дневная цель" iconName="target" colors={colors}>
+          <View style={styles.goalRow}>
+            {DAILY_GOALS.map((g) => (
+              <TouchableOpacity
+                key={g.value}
+                onPress={() => handleDailyGoal(g.value)}
+                style={[
+                  styles.goalOption,
+                  {
+                    backgroundColor:
+                      settings.dailyXpGoal === g.value
+                        ? colors.primary + "18"
+                        : colors.secondary,
+                    borderColor:
+                      settings.dailyXpGoal === g.value
+                        ? colors.primary
+                        : colors.border,
+                    borderWidth: settings.dailyXpGoal === g.value ? 2 : 1.5,
+                    flex: 1,
+                  },
+                ]}
+              >
+                <Feather name="zap" size={14} color={settings.dailyXpGoal === g.value ? colors.primary : colors.mutedForeground} />
+                <Text
+                  style={[
+                    styles.goalLabel,
+                    {
+                      color:
+                        settings.dailyXpGoal === g.value
+                          ? colors.primary
+                          : colors.subForeground,
+                      fontWeight: settings.dailyXpGoal === g.value ? "700" : "500",
+                    },
+                  ]}
+                >
+                  {g.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </SectionCard>
+
         {/* Mascot */}
         <SectionCard title="Маскот" iconName="smile" colors={colors}>
           <View style={styles.mascotRow}>
@@ -220,7 +279,7 @@ export default function SettingsScreen() {
 
         {/* Avatar Color */}
         <SectionCard title="Цвет аватара" iconName="user" colors={colors}>
-          <View style={styles.colorRow}>
+          <View style={styles.colorGrid}>
             {AVATAR_COLORS.map((c) => (
               <TouchableOpacity
                 key={c}
@@ -261,17 +320,15 @@ export default function SettingsScreen() {
                 ]}
               >
                 <Text
-                  style={[
-                    {
-                      fontSize: f.size,
-                      color:
-                        settings.fontSize === f.id
-                          ? colors.primary
-                          : colors.foreground,
-                      fontWeight: "600",
-                      fontFamily: "Inter_600SemiBold",
-                    },
-                  ]}
+                  style={{
+                    fontSize: f.size,
+                    color:
+                      settings.fontSize === f.id
+                        ? colors.primary
+                        : colors.foreground,
+                    fontWeight: "600",
+                    fontFamily: "Inter_600SemiBold",
+                  }}
                 >
                   Aa
                 </Text>
@@ -293,13 +350,45 @@ export default function SettingsScreen() {
           </View>
         </SectionCard>
 
-        {/* Info */}
-        <SectionCard title="Информация" iconName="info" colors={colors}>
+        {/* Toggles */}
+        <SectionCard title="Прочее" iconName="sliders" colors={colors}>
+          <ToggleRow
+            label="Звук"
+            icon="volume-2"
+            value={settings.soundEnabled ?? true}
+            onToggle={(v) => updateSettings({ soundEnabled: v })}
+            colors={colors}
+          />
+          <ToggleRow
+            label="Вибрация"
+            icon="smartphone"
+            value={settings.vibrationEnabled ?? true}
+            onToggle={(v) => updateSettings({ vibrationEnabled: v })}
+            colors={colors}
+          />
+          <ToggleRow
+            label="Уведомления"
+            icon="bell"
+            value={false}
+            onToggle={() => {}}
+            colors={colors}
+            disabled
+          />
+          <ToggleRow
+            label="Язык: Русский"
+            icon="globe"
+            value={true}
+            onToggle={() => {}}
+            colors={colors}
+            disabled
+          />
+        </SectionCard>
+
+        {/* App info */}
+        <SectionCard title="О приложении" iconName="info" colors={colors}>
           <View style={styles.infoRows}>
-            <InfoRow label="Имя" value={userStats.name} colors={colors} />
-            <InfoRow label="Уровень" value={`${Math.floor(userStats.xp / 100) + 1}`} colors={colors} />
-            <InfoRow label="XP всего" value={`${userStats.xp}`} colors={colors} />
-            <InfoRow label="Стрик" value={`${userStats.streak} дн.`} colors={colors} />
+            <InfoRow label="Версия" value="1.0.0" colors={colors} />
+            <InfoRow label="Контент" value="ОГЭ Математика 2025" colors={colors} />
           </View>
         </SectionCard>
 
@@ -317,6 +406,39 @@ export default function SettingsScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+    </View>
+  );
+}
+
+function ToggleRow({
+  label,
+  icon,
+  value,
+  onToggle,
+  colors,
+  disabled,
+}: {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  value: boolean;
+  onToggle: (v: boolean) => void;
+  colors: ReturnType<typeof useAppColors>;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
+      <Feather name={icon} size={16} color={disabled ? colors.mutedForeground : colors.primary} />
+      <Text style={[styles.toggleLabel, { color: disabled ? colors.mutedForeground : colors.foreground }]}>
+        {label}
+      </Text>
+      <Switch
+        value={value}
+        onValueChange={disabled ? undefined : onToggle}
+        disabled={disabled}
+        trackColor={{ false: colors.track, true: colors.primary + "60" }}
+        thumbColor={value ? colors.primary : colors.mutedForeground}
+        ios_backgroundColor={colors.track}
+      />
     </View>
   );
 }
@@ -443,6 +565,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  goalRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  goalOption: {
+    padding: 12,
+    borderRadius: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  goalLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
   mascotRow: {
     flexDirection: "row",
     gap: 10,
@@ -459,7 +595,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
-  colorRow: {
+  colorGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
@@ -472,7 +608,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colorSwatchSelected: {
-    transform: [{ scale: 1.15 }],
+    transform: [{ scale: 1.18 }],
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -491,6 +627,17 @@ const styles = StyleSheet.create({
   fontLabel: {
     fontSize: 11,
     fontWeight: "500",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  toggleLabel: {
+    flex: 1,
+    fontSize: 14,
   },
   infoRows: { gap: 0 },
   infoRow: {

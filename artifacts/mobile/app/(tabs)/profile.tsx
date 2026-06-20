@@ -13,6 +13,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import Mascot from "@/components/Mascot";
 import { achievements } from "@/data/achievements";
+import { chapters } from "@/data/curriculum";
 
 const LEAGUE_NAMES = ["Бронза", "Серебро", "Золото", "Платина", "Алмаз"];
 const LEAGUE_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E2E0DF", "#B9F2FF"];
@@ -38,10 +39,18 @@ export default function ProfileScreen() {
       ? Math.round((userStats.correctAnswers / userStats.totalAnswers) * 100)
       : 0;
 
+  const completedChapters = chapters.filter((ch) =>
+    ch.nodes.every((n) => userStats.completedNodeIds.includes(n.id))
+  ).length;
+
+  // Approximate days in app from completedNodeIds (at least 1 if onboarded)
+  const daysInApp = userStats.weeklyDates.length;
+
   const unlockedCount = achievements.filter((a) =>
     a.isUnlocked({
       xp: userStats.xp,
       streak: userStats.streak,
+      longestStreak: userStats.longestStreak,
       solvedTasks: userStats.solvedTasks,
       correctAnswers: userStats.correctAnswers,
       totalAnswers: userStats.totalAnswers,
@@ -70,9 +79,7 @@ export default function ProfileScreen() {
         {/* ── Hero: XP ring + mascot ── */}
         <View style={styles.heroSection}>
           <View style={styles.ringWrap}>
-            {/* SVG ring */}
             <Svg width={RING_SIZE} height={RING_SIZE}>
-              {/* Track */}
               <Circle
                 cx={RING_SIZE / 2}
                 cy={RING_SIZE / 2}
@@ -81,7 +88,6 @@ export default function ProfileScreen() {
                 strokeWidth={RING_SW}
                 fill="none"
               />
-              {/* Progress */}
               <Circle
                 cx={RING_SIZE / 2}
                 cy={RING_SIZE / 2}
@@ -94,11 +100,9 @@ export default function ProfileScreen() {
                 transform={`rotate(-90, ${RING_SIZE / 2}, ${RING_SIZE / 2})`}
               />
             </Svg>
-            {/* Mascot centered inside ring */}
             <View style={styles.mascotOverlay} pointerEvents="none">
               <Mascot type={settings.mascot} size={112} animated />
             </View>
-            {/* Level badge at bottom-right of ring */}
             <View
               style={[styles.levelBadge, { backgroundColor: colors.primary }]}
             >
@@ -106,7 +110,8 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Name & sub */}
+          <View style={[styles.avatarDot, { backgroundColor: settings.avatarColor }]} />
+
           <Text style={[styles.userName, { color: colors.foreground }]}>
             {userStats.name}
           </Text>
@@ -116,7 +121,6 @@ export default function ProfileScreen() {
           <Text style={[styles.xpHint, { color: colors.mutedForeground }]}>
             {xpInLevel} / 100 XP — до ур. {level + 1} ещё {100 - xpInLevel} XP
           </Text>
-
         </View>
 
         {/* ── League card ── */}
@@ -142,7 +146,6 @@ export default function ProfileScreen() {
               {userStats.xp} XP собрано
             </Text>
           </View>
-          {/* League step indicators */}
           <View style={styles.leagueSteps}>
             {[1, 2, 3, 4, 5].map((l) => (
               <View
@@ -159,21 +162,21 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Stats 2×2 ── */}
+        {/* ── Stats grid ── */}
         <View style={styles.statsGrid}>
           {[
             {
               label: "Стрик",
               value: `${userStats.streak}`,
               sub: "дней подряд",
-              icon: "activity" as const,
+              icon: "zap" as const,
               color: colors.red,
             },
             {
               label: "XP",
               value: `${userStats.xp}`,
               sub: "очков опыта",
-              icon: "zap" as const,
+              icon: "award" as const,
               color: colors.primary,
             },
             {
@@ -211,6 +214,31 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {/* ── Additional stats ── */}
+        <View style={[styles.extraStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <ExtraStatRow
+            label="Рекорд стрика"
+            value={`${userStats.longestStreak ?? 0} дней 🏆`}
+            colors={colors}
+          />
+          <ExtraStatRow
+            label="Глав завершено"
+            value={`${completedChapters} / ${chapters.length}`}
+            colors={colors}
+          />
+          <ExtraStatRow
+            label="Дней в приложении"
+            value={`${daysInApp}`}
+            colors={colors}
+          />
+          <ExtraStatRow
+            label="Правильных ответов"
+            value={`${userStats.correctAnswers} / ${userStats.totalAnswers}`}
+            colors={colors}
+            last
+          />
+        </View>
+
         {/* ── Achievements ── */}
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeader}>
@@ -235,6 +263,7 @@ export default function ProfileScreen() {
               const unlocked = a.isUnlocked({
                 xp: userStats.xp,
                 streak: userStats.streak,
+                longestStreak: userStats.longestStreak,
                 solvedTasks: userStats.solvedTasks,
                 correctAnswers: userStats.correctAnswers,
                 totalAnswers: userStats.totalAnswers,
@@ -305,6 +334,30 @@ export default function ProfileScreen() {
   );
 }
 
+function ExtraStatRow({
+  label,
+  value,
+  colors,
+  last,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof useAppColors>;
+  last?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.extraRow,
+        { borderBottomColor: colors.border, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth },
+      ]}
+    >
+      <Text style={[styles.extraLabel, { color: colors.subForeground }]}>{label}</Text>
+      <Text style={[styles.extraValue, { color: colors.foreground }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, gap: 16 },
@@ -335,11 +388,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  avatarDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginTop: -4,
+  },
   userName: {
     fontSize: 22,
     fontWeight: "800",
     fontFamily: "Inter_700Bold",
-    marginTop: 4,
+    marginTop: 2,
   },
   userSub: { fontSize: 13 },
   xpHint: { fontSize: 12, marginTop: 2 },
@@ -391,6 +450,20 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 22, fontWeight: "800", fontFamily: "Inter_700Bold" },
   statSub: { fontSize: 12 },
+
+  extraStatsCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+  extraRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  extraLabel: { fontSize: 14 },
+  extraValue: { fontSize: 14, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
 
   sectionWrap: { gap: 12 },
   sectionHeader: {

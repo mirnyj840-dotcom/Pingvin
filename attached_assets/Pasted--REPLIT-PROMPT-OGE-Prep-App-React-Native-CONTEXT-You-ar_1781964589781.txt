@@ -1,0 +1,336 @@
+# 🎯 REPLIT PROMPT — OGE Prep App (React Native)
+
+---
+
+## 🧠 CONTEXT
+
+You are a senior React Native developer and UI/UX designer working on an educational mobile app for OGE (Russian state exam) preparation. The app already has a working structure with bottom navigation (Главная / Путь / Профиль / Настройки), a mascot penguin, XP system, streak tracking, and theory/quiz sections.
+
+**DO NOT change:** navigation structure, screen names, core business logic, or the penguin mascot concept.
+
+**DO improve:** everything visual, all logic bugs, UX flows, content quality, and missing features described below.
+
+**Target audience:** Students aged 14–18, Russian-speaking.
+**Competitors to beat:** Duolingo, Stepik, Яндекс.Репетитор.
+
+---
+
+## 🏠 SCREEN 1 — "Главная" (Home)
+
+### Current state:
+- Greeting card with penguin + name + level + XP progress bar
+- Featured lesson banner ("Числа и вычисления")
+- Daily goal card (0 / 50 XP)
+- Weekly streak (7 day dots)
+- Stats grid: chapters completed + accuracy
+- Quick-access cards: Задания / Достижения
+
+### Required improvements:
+
+**Greeting card:**
+- Make greeting dynamic based on time of day: "Доброе утро" / "Добрый день" / "Добрый вечер"
+- Add motivational micro-copy that changes daily (array of 10+ phrases)
+- Animate XP progress bar on screen mount using Reanimated (smooth fill animation, 600ms ease-out)
+- Show how many XP until next level (e.g. "Ещё 88 XP до Ур.2")
+
+**Featured lesson banner:**
+- Show the NEXT uncompleted lesson, not a hardcoded one
+- Add a progress indicator if the lesson was started but not finished ("Продолжить")
+- Make the banner tappable → navigates to that lesson
+
+**Daily goal card:**
+- Add animated circular progress ring (SVG-based) around the 0/50 XP counter
+- Show a motivational message when daily goal is reached: "Цель выполнена! 🎉"
+- Let users set their daily XP goal (25 / 50 / 100 / 150 XP) — save to AsyncStorage
+
+**Weekly streak:**
+- Replace plain dots with: flame emoji for completed days, gray circle for missed days, colored ring for today
+- Add longest streak record below ("Рекорд: 5 дней")
+
+**Stats grid:**
+- Add real accuracy percentage (correct answers / total answers × 100)
+- Animate numbers counting up on mount
+
+---
+
+## 🗺️ SCREEN 2 — "Путь" (Learning Path)
+
+### Architecture:
+
+Build a structured curriculum for Russian OGE Mathematics exam with:
+
+**10 Chapters (Главы):**
+1. Числа и вычисления
+2. Алгебраические выражения
+3. Уравнения и неравенства
+4. Функции и графики
+5. Геометрия: планиметрия
+6. Геометрия: стереометрия (базово)
+7. Статистика и вероятность
+8. Текстовые задачи
+9. Координатная плоскость
+10. Итоговый тест (финальный экзамен — разблокируется после остальных глав)
+
+**Each chapter contains:**
+- Теория (theory block): clear, engaging explanation. NOT boring textbook text. Use analogies, real-life examples, short paragraphs. Max 150 words per theory block. Add 2–3 worked examples with step-by-step solutions.
+- Практика (practice): 8–12 questions per chapter.
+- Мини-тест: 5 questions at the end. Must pass with 4/5 to unlock next chapter.
+
+### Question system — CRITICAL LOGIC:
+
+Implement a proper shuffle + anti-repeat system:
+
+```typescript
+// Answer options must NEVER repeat in the same session
+// Use Fisher-Yates shuffle on options array
+// Track shown questions in session state
+// Wrong answer → question returns to queue (shuffled position)
+// Correct answer → question removed from queue
+// Never show the same distractor in the same position twice in a row
+
+interface Question {
+  id: string;
+  text: string;
+  correctAnswer: string;
+  distractors: string[]; // min 3, max 5 wrong options
+  explanation: string; // shown after answering
+  difficulty: 'easy' | 'medium' | 'hard';
+  topic: string;
+}
+
+function shuffleAnswers(question: Question): string[] {
+  const all = [question.correctAnswer, ...question.distractors];
+  // Fisher-Yates shuffle
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all;
+}
+```
+
+**Add at least 8 real OGE-style questions per chapter.** Use actual question formats from real OGE exams (числовые ответы, выбор из 4, соответствие).
+
+### Path UI:
+
+- Vertical scrollable path with nodes (like Duolingo's map)
+- Each chapter node: large circle, chapter icon, chapter name, progress (e.g. "3/10 заданий"), lock state
+- Completed = green with checkmark
+- In progress = purple/blue with progress ring
+- Locked = gray with padlock icon
+- Tapping an unlocked chapter → shows chapter detail modal with Теория / Практика / Мини-тест tabs
+- Add XP reward display on each node: "+50 XP"
+- Chapter nodes connected by a dashed path line (decorative)
+
+---
+
+## 👤 SCREEN 3 — "Профиль" (Profile)
+
+### Layout:
+
+**Header:**
+- Large avatar circle (color customizable — see avatar section)
+- Username (editable with a pencil icon tap)
+- Level badge (e.g. "Ур. 1 · Новичок")
+- Total XP display
+
+**Stats section (move from Info screen here):**
+- Дней в приложении
+- Заданий выполнено
+- Точность (%)
+- Streak рекорд
+- Глав завершено
+
+**Achievements section:**
+- Grid of achievement badges (locked = grayscale + padlock, unlocked = colored)
+- At least 12 achievements:
+  - Первый шаг (complete 1 lesson)
+  - Неделя подряд (7-day streak)
+  - Отличник (100% accuracy in a chapter)
+  - Марафонец (complete all chapters)
+  - Быстрый ум (answer 5 questions in under 30 sec)
+  - … etc.
+
+**Avatar color picker:**
+- Show at least 12 color options (not just 4–5)
+- Include: purple, blue, teal, green, orange, red, pink, yellow, dark gray, brown, coral, mint
+- Preview updates live
+- Save to AsyncStorage
+
+---
+
+## ⚙️ SCREEN 4 — "Настройки" (Settings)
+
+### Theme system:
+
+Implement 2 complete themes (switchable without restart):
+
+**Theme 1: "Классика" (Default — current purple theme, improved)**
+- Primary: #5B4CF0
+- Primary Light: #7C6BFF
+- Accent: #FF8A3D
+- Success: #22C55E
+- Background: #FAF8F5
+- Surface: #FFFFFF
+- Text Primary: #1F2937
+- Text Secondary: #6B7280
+- Large rounded corners (20px)
+- Soft card shadows
+- Smooth gradients on banners
+
+**Theme 2: "Пинк виб" (Pink aesthetic)**
+- Primary Pink: #FF7EB6
+- Light Pink: #FFD6E7
+- Pastel background: #FFF1F7
+- Lavender accent: #DCC6FF
+- Surface: #FFFDFC
+- Text Primary: #2B2B2B
+- Decorative elements: tiny hearts ♡, sparkles ✦ as SVG overlays on cards
+- Progress bars: pink gradient
+- Weekly streak dots: heart shapes
+- Penguin mascot: pink scarf variant
+
+**Theme switching:**
+```typescript
+// Use React Context + AsyncStorage
+const ThemeContext = createContext<Theme>(defaultTheme);
+
+// Apply theme to ALL components via context
+// No hardcoded colors anywhere in the codebase
+// All colors reference theme tokens only
+```
+
+**Remove:** "Нуар" and "Нордик" themes (replace with the two above)
+
+### Other settings:
+
+**Font size — FIX THIS BUG:**
+```typescript
+// Current bug: font size setting doesn't apply to components
+// Fix: store fontSize multiplier in ThemeContext (not just local state)
+// Apply everywhere: fontSize: 14 * theme.fontScale
+
+type FontScale = 0.85 | 1.0 | 1.15 | 1.3;
+
+// Wrap all Text components with a custom <AppText> component
+// that automatically applies the font scale from context
+const AppText: React.FC<TextProps & { variant?: 'body' | 'title' | 'caption' }> = 
+  ({ style, variant = 'body', ...props }) => {
+    const { fontScale } = useTheme();
+    const baseSize = variant === 'title' ? 18 : variant === 'caption' ? 12 : 14;
+    return <Text style={[{ fontSize: baseSize * fontScale }, style]} {...props} />;
+  };
+```
+
+**Other toggles:**
+- Звук (sound effects on answer)
+- Вибрация (haptic feedback)
+- Уведомления (daily reminder — time picker)
+- Язык (Russian only for now, but add the toggle UI as disabled)
+
+**Info section — REMOVE from Settings:**
+Move all info content to Profile screen. In Settings, keep only: About app version, Privacy policy link, Rate app button.
+
+---
+
+## 🎨 GLOBAL UI RULES
+
+### Typography:
+- ALL Text components wrapped in `<AppText>` — never use raw `<Text>`
+- Heading: 22px × bold
+- Subheading: 18px × semibold
+- Body: 14–16px × regular
+- Caption: 12px × regular, secondary color
+
+### Components to create as reusables:
+- `<AppText>` — font-scale aware
+- `<Card>` — rounded surface with shadow
+- `<XPBadge>` — orange pill with lightning bolt
+- `<StreakBadge>` — flame + count
+- `<ProgressBar>` — animated fill
+- `<LessonCard>` — lesson node for Path screen
+- `<AchievementBadge>` — locked/unlocked states
+- `<QuestionCard>` — answer options layout
+- `<TheoryBlock>` — styled theory content
+- `<PrimaryButton>` / `<SecondaryButton>`
+
+### Animations (React Native Reanimated):
+- Button press: scale(0.96) + opacity(0.9) on press, spring back on release
+- Card appear: fade in + slide up 8px (staggered in lists)
+- XP gain: floating +XP text that rises and fades
+- Correct answer: green flash + scale up
+- Wrong answer: shake animation (horizontal oscillation)
+- Level up: full-screen celebration overlay (confetti-style using Animated)
+- Achievement unlock: slide-in card from bottom + gold glow pulse
+
+### Sounds (expo-av):
+- Correct answer: short positive chime
+- Wrong answer: low buzz
+- Level up: fanfare
+- Streak continue: satisfying click
+- All toggleable in Settings
+
+---
+
+## 📁 FILE STRUCTURE
+
+```
+/src
+  /components
+    AppText.tsx
+    Card.tsx
+    XPBadge.tsx
+    StreakBadge.tsx
+    ProgressBar.tsx
+    LessonCard.tsx
+    AchievementBadge.tsx
+    QuestionCard.tsx
+    TheoryBlock.tsx
+    PrimaryButton.tsx
+  /screens
+    HomeScreen.tsx
+    PathScreen.tsx
+    ProfileScreen.tsx
+    SettingsScreen.tsx
+    LessonScreen.tsx  ← new
+    QuizScreen.tsx    ← new
+  /context
+    ThemeContext.tsx
+    UserProgressContext.tsx
+  /theme
+    theme.ts
+    colors.ts
+    spacing.ts
+    typography.ts
+  /data
+    curriculum.ts    ← all chapters + questions
+    achievements.ts  ← achievement definitions
+  /hooks
+    useProgress.ts
+    useTheme.ts
+    useStreak.ts
+  /utils
+    shuffle.ts       ← Fisher-Yates
+    storage.ts       ← AsyncStorage helpers
+    xp.ts            ← XP calculation logic
+```
+
+---
+
+## ✅ ACCEPTANCE CRITERIA
+
+Before finishing, verify:
+- [ ] Font size setting actually changes text size across the whole app
+- [ ] Answer options never repeat in same position twice in a row
+- [ ] Both themes apply to 100% of UI (no hardcoded colors)
+- [ ] All XP earned is saved to AsyncStorage and persists on restart
+- [ ] Chapter lock/unlock logic works correctly
+- [ ] Avatar color picker shows 12+ options and saves
+- [ ] Daily streak increments only once per day
+- [ ] Wrong answers return to question queue
+- [ ] All animations run at 60fps (use `useNativeDriver: true`)
+- [ ] App works on both iOS and Android
+
+---
+
+*Output production-ready TypeScript code. Start with the theme system and reusable components, then screens one by one. Ask me which screen to tackle first if unclear.*
