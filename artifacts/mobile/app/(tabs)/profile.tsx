@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Animated as RNAnimated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -14,6 +15,63 @@ import { useTheme } from "@/hooks/useTheme";
 import Mascot from "@/components/Mascot";
 import { achievements } from "@/data/achievements";
 import { chapters } from "@/data/curriculum";
+
+// ─── Next Achievement Card ───────────────────────────────────
+function NextAchievementCard({ colors, fs, userStats }: { colors: any; fs: (n: number) => number; userStats: any }) {
+  const statsCtx = {
+    xp: userStats.xp,
+    streak: userStats.streak,
+    longestStreak: userStats.longestStreak ?? 0,
+    solvedTasks: userStats.solvedTasks,
+    correctAnswers: userStats.correctAnswers,
+    totalAnswers: userStats.totalAnswers,
+    completedNodeIds: userStats.completedNodeIds,
+  };
+
+  // Find locked achievements with estimated progress
+  const withProgress = achievements
+    .filter((a) => !a.isUnlocked(statsCtx))
+    .map((a) => {
+      let pct = 0;
+      const id = a.id;
+      if (id.startsWith("streak_") || id.startsWith("streak")) {
+        const needed = id.includes("30") ? 30 : id.includes("21") ? 21 : id.includes("14") ? 14 : id.includes("7") ? 7 : 3;
+        pct = Math.min(1, userStats.streak / needed);
+      } else if (id.startsWith("xp_")) {
+        const needed = id.includes("1000") ? 1000 : id.includes("500") ? 500 : id.includes("250") ? 250 : id.includes("100") ? 100 : 50;
+        pct = Math.min(1, userStats.xp / needed);
+      } else if (id.startsWith("tasks_")) {
+        const needed = id.includes("100") ? 100 : id.includes("50") ? 50 : id.includes("25") ? 25 : 10;
+        pct = Math.min(1, userStats.solvedTasks / needed);
+      }
+      return { a, pct };
+    })
+    .sort((x, y) => y.pct - x.pct);
+
+  if (withProgress.length === 0) return null;
+  const { a: next, pct } = withProgress[0];
+  const bar = Math.round(pct * 100);
+
+  return (
+    <View style={[{ borderWidth: 1, borderRadius: 16, padding: 16, gap: 10, backgroundColor: next.iconColor + "0D", borderColor: next.iconColor + "30" }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: next.iconColor + "22", alignItems: "center", justifyContent: "center" }}>
+          <Feather name={next.iconName as any} size={22} color={next.iconColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: fs(12), color: next.iconColor, fontWeight: "700", marginBottom: 2 }}>🎯 Следующее достижение</Text>
+          <Text style={{ fontSize: fs(14), fontWeight: "700", color: colors.foreground }}>{next.label}</Text>
+          <Text style={{ fontSize: fs(12), color: colors.subForeground, marginTop: 1 }}>{next.description}</Text>
+        </View>
+        <Text style={{ fontSize: fs(15), fontWeight: "800", color: next.iconColor }}>{bar}%</Text>
+      </View>
+      {/* Progress bar */}
+      <View style={{ height: 8, backgroundColor: colors.track, borderRadius: 6, overflow: "hidden" }}>
+        <View style={{ width: `${bar}%`, height: "100%", backgroundColor: next.iconColor, borderRadius: 6 }} />
+      </View>
+    </View>
+  );
+}
 
 const LEAGUE_NAMES = ["Бронза", "Серебро", "Золото", "Платина", "Алмаз"];
 const LEAGUE_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E2E0DF", "#B9F2FF"];
@@ -124,6 +182,9 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        {/* Next Achievement */}
+        <NextAchievementCard colors={colors} fs={fs} userStats={userStats} />
 
         {/* Detailed stats */}
         <View style={[styles.extraCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>

@@ -96,6 +96,25 @@ export default function PathScreen() {
         </View>
       </View>
 
+      {/* Overall progress bar */}
+      <View style={[styles.progressBarWrap, { paddingHorizontal: CONTENT_PAD, paddingBottom: 12 }]}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+          <Text style={{ color: colors.subForeground, fontSize: fs(12) }}>
+            Общий прогресс курса
+          </Text>
+          <Text style={{ color: colors.primary, fontSize: fs(12), fontWeight: "700" }}>
+            {totalDone} из {totalNodes} уроков
+          </Text>
+        </View>
+        <View style={{ height: 10, backgroundColor: colors.track, borderRadius: 8, overflow: "hidden" }}>
+          <LinearGradient
+            colors={[colors.primary, colors.primary + "BB"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{ width: `${Math.max(overallPct, 2)}%`, height: "100%", borderRadius: 8 }}
+          />
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: pb + 110 }]}
         showsVerticalScrollIndicator={false}
@@ -379,6 +398,7 @@ const styles = StyleSheet.create({
   chapterDesc: { marginTop: 2 },
   chapterRight: { alignItems: "flex-end", gap: 6 },
   chapterPct: { fontWeight: "800", fontFamily: "Inter_700Bold" },
+  progressBarWrap: {},
   progressDots: { flexDirection: "row", gap: 3 },
   progressDot: { width: 6, height: 6, borderRadius: 3 },
 

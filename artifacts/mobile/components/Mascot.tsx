@@ -271,28 +271,35 @@ function AnimatedPenguin({
   }));
 
   return (
-    <View style={{ width: size, alignItems: "center" }}>
+    <View style={{ width: size, alignItems: "center", backgroundColor: "transparent" }}>
       {/* Drop shadow ellipse — squishes dynamically */}
       <Animated.View
         style={[
           {
             width: size * 0.65,
-            height: size * 0.1,
-            borderRadius: size * 0.05,
+            height: size * 0.08,
+            borderRadius: size * 0.04,
             backgroundColor: "#000",
-            marginBottom: -size * 0.04,
+            marginBottom: -size * 0.03,
             alignSelf: "center",
           },
           shadowStyle,
         ]}
       />
 
-      {/* Penguin image */}
-      <Animated.Image
-        source={PENGUIN_IMG}
-        resizeMode="contain"
-        style={[{ width: size, height: size }, bodyStyle]}
-      />
+      {/* Penguin image — transparent container is critical */}
+      <Animated.View
+        style={[
+          { width: size, height: size, backgroundColor: "transparent" },
+          bodyStyle,
+        ]}
+      >
+        <Image
+          source={PENGUIN_IMG}
+          resizeMode="contain"
+          style={{ width: size, height: size, backgroundColor: "transparent" }}
+        />
+      </Animated.View>
     </View>
   );
 }
