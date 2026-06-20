@@ -9,9 +9,22 @@ import {
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  View,
+  Text,
+  useColorScheme,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAppColors } from "@/hooks/useAppColors";
+import { useTheme } from "@/hooks/useTheme";
+import {
+  PinkHomeIcon,
+  PinkPathIcon,
+  PinkProfileIcon,
+  PinkSettingsIcon,
+} from "@/components/PinkTabIcons";
+import { useApp } from "@/contexts/AppContext";
 
 function NativeTabLayout() {
   return (
@@ -37,47 +50,58 @@ function NativeTabLayout() {
 }
 
 function ClassicTabLayout() {
-  const colors = useAppColors();
+  const { colors } = useTheme();
+  const { settings } = useApp();
+  const isPink = settings.theme === "pink";
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
+  const tabBarHeight = isWeb ? 84 : 68;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarInactiveTintColor: isPink ? "#DDB0C8" : colors.mutedForeground,
+        tabBarLabelStyle: isPink
+          ? { fontSize: 10, fontWeight: "600", marginBottom: 2 }
+          : { fontSize: 11 },
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
+          backgroundColor: "transparent",
           borderTopWidth: 0,
-          borderTopColor: "transparent",
           elevation: 0,
+          height: tabBarHeight + safeAreaInsets.bottom,
           paddingBottom: safeAreaInsets.bottom,
-          ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
-          isIOS ? (
+          isPink ? (
+            <PinkTabBarBackground colors={colors} />
+          ) : isIOS ? (
             <BlurView
               intensity={90}
               tint={isDark ? "dark" : "light"}
-              style={[StyleSheet.absoluteFill, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-            />
-          ) : isWeb ? (
-            <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: colors.background, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+                {
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: colors.border,
+                },
               ]}
             />
           ) : (
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: colors.background, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+                {
+                  backgroundColor: colors.background,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: colors.border,
+                },
               ]}
             />
           ),
@@ -87,8 +111,10 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: "Главная",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
+          tabBarIcon: ({ focused, color }) =>
+            isPink ? (
+              <PinkHomeIcon active={focused} />
+            ) : isIOS ? (
               <SymbolView name="house" tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
@@ -99,8 +125,10 @@ function ClassicTabLayout() {
         name="path"
         options={{
           title: "Путь",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
+          tabBarIcon: ({ focused, color }) =>
+            isPink ? (
+              <PinkPathIcon active={focused} />
+            ) : isIOS ? (
               <SymbolView name="map" tintColor={color} size={24} />
             ) : (
               <Feather name="map" size={22} color={color} />
@@ -111,8 +139,10 @@ function ClassicTabLayout() {
         name="profile"
         options={{
           title: "Профиль",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
+          tabBarIcon: ({ focused, color }) =>
+            isPink ? (
+              <PinkProfileIcon active={focused} />
+            ) : isIOS ? (
               <SymbolView name="person" tintColor={color} size={24} />
             ) : (
               <Feather name="user" size={22} color={color} />
@@ -123,8 +153,10 @@ function ClassicTabLayout() {
         name="settings"
         options={{
           title: "Настройки",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
+          tabBarIcon: ({ focused, color }) =>
+            isPink ? (
+              <PinkSettingsIcon active={focused} />
+            ) : isIOS ? (
               <SymbolView name="gearshape" tintColor={color} size={24} />
             ) : (
               <Feather name="settings" size={22} color={color} />
@@ -135,9 +167,45 @@ function ClassicTabLayout() {
   );
 }
 
+function PinkTabBarBackground({ colors }: { colors: any }) {
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.pinkBar]}>
+      {/* Soft gradient background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFDFC" }]} />
+      {/* Top border — pink dashed line feel */}
+      <View style={styles.pinkTopBorder} />
+      {/* Decorative floating elements */}
+      <Text style={[styles.deco, { left: 12, top: 6, fontSize: 11 }]}>💕</Text>
+      <Text style={[styles.deco, { left: "28%", top: 8, fontSize: 9 }]}>✨</Text>
+      <Text style={[styles.deco, { left: "52%", top: 5, fontSize: 10 }]}>🌸</Text>
+      <Text style={[styles.deco, { right: "22%", top: 9, fontSize: 9 }]}>⭐</Text>
+      <Text style={[styles.deco, { right: 14, top: 6, fontSize: 10 }]}>🎀</Text>
+    </View>
+  );
+}
+
 export default function TabLayout() {
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
   return <ClassicTabLayout />;
 }
+
+const styles = StyleSheet.create({
+  pinkBar: {
+    overflow: "hidden",
+  },
+  pinkTopBorder: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: "#FFB3D1",
+    opacity: 0.6,
+  },
+  deco: {
+    position: "absolute",
+    opacity: 0.55,
+  },
+});
