@@ -95,7 +95,7 @@ export const achievements: Achievement[] = [
     label: "Числовой мастер",
     description: "Пройти главу «Числа»",
     isUnlocked: ({ completedNodeIds }) =>
-      ["numbers_theory", "numbers_quiz", "numbers_boss"].every((id) =>
+      ["numbers_t1", "numbers_q1", "numbers_p1", "numbers_t2", "numbers_q2", "numbers_p2", "numbers_boss"].every((id) =>
         completedNodeIds.includes(id)
       ),
   },
