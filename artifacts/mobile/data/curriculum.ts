@@ -465,7 +465,9 @@ const chapterSections: Chapter[] = [
           "Деление заменяется умножением на обратную дробь",
           "4/7 : 8/21 = 4/7 · 21/8",
           "Смешанное число переводится перед действием",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video_ext.php?oid=-45&id=456240272&hash=0078fc0952b5af7d&hd=4"
       ),
       activityNode(
         "fraction-multiply-divide",
