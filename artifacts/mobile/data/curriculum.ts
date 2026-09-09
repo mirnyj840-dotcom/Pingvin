@@ -713,7 +713,9 @@ const chapterSections: Chapter[] = [
           "7 + (−3) = 4",
           "5 − (−3) = 5 + 3 = 8",
           "Одинаковые знаки: плюс, разные знаки: минус",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video_ext.php?oid=-148689480&id=456239083&hash=046518ed058eca58&hd=2"
       ),
       activityNode(
         "negative-numbers",
