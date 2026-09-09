@@ -70,7 +70,9 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-const STORAGE_KEY = "oge_app_v3";
+// Curriculum v4 is a new course. Legacy lesson completion must not unlock it.
+const STORAGE_KEY = "oge_app_v4";
+const LEGACY_STORAGE_KEYS = ["oge_app_v3", "oge_app_v2"];
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "space",
@@ -111,12 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function loadData() {
     try {
-      // Try new key first
       let raw = await AsyncStorage.getItem(STORAGE_KEY);
-      // Fall back to old key to migrate existing users
-      if (!raw) {
-        raw = await AsyncStorage.getItem("oge_app_v2");
-      }
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved.stats) {
@@ -134,7 +131,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setSettings(savedSettings);
         }
       } else {
-        setUserStats((s) => ({ ...s, isLoaded: true }));
+        // Keep the learner's identity and preferences, but start the new path
+        // with clean course progress instead of carrying over old node IDs.
+        let legacy: { stats?: Partial<UserStats>; settings?: Partial<AppSettings> } | null = null;
+        for (const legacyKey of LEGACY_STORAGE_KEYS) {
+          const legacyRaw = await AsyncStorage.getItem(legacyKey);
+          if (legacyRaw) {
+            legacy = JSON.parse(legacyRaw);
+            break;
+          }
+        }
+
+        const migratedStats: UserStats = {
+          ...DEFAULT_STATS,
+          name: legacy?.stats?.name ?? DEFAULT_STATS.name,
+          onboardingDone: legacy?.stats?.onboardingDone ?? DEFAULT_STATS.onboardingDone,
+          isLoaded: true,
+        };
+        const migratedSettings: AppSettings = {
+          ...DEFAULT_SETTINGS,
+          ...(legacy?.settings ?? {}),
+        };
+        setUserStats(migratedStats);
+        setSettings(migratedSettings);
+        await saveData(migratedStats, migratedSettings);
+        await Promise.all(LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)));
       }
     } catch {
       setUserStats((s) => ({ ...s, isLoaded: true }));
