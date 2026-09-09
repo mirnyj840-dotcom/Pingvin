@@ -341,7 +341,9 @@ const chapterSections: Chapter[] = [
           "Дополнительный множитель = НОЗ : исходный знаменатель",
           "После приведения складываются только числители",
           "Ответ нужно сократить, если это возможно",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video_ext.php?oid=-59108158&id=456240596&hash=86d6d71aa85f70f9&hd=4"
       ),
       activityNode(
         "fraction-add-subtract",
