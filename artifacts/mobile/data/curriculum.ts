@@ -589,7 +589,9 @@ const chapterSections: Chapter[] = [
           "1,2 · 0,35 = 0,42",
           "1,32 : 0,4 = 13,2 : 4 = 3,3",
           "Нули справа после запятой не меняют число",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video_ext.php?oid=-231841531&id=456239029&hash=f55c097dce544a11&hd=3"
       ),
       activityNode(
         "decimal-fractions",
