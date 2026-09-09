@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   Platform,
+  TouchableOpacity,
+  Linking,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useAppColors } from "@/hooks/useAppColors";
@@ -49,6 +51,50 @@ export default function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
           <Feather name="upload-cloud" size={12} color={colors.primary} />
           <Text style={[styles.uploadText, { color: colors.primary }]}>Скоро</Text>
         </View>
+      </View>
+    );
+  }
+
+  const isVkVideo =
+    videoUrl.includes("vkvideo.ru") || videoUrl.includes("vk.com/video");
+
+  if (isVkVideo) {
+    const openVideo = () => {
+      void Linking.openURL(videoUrl);
+    };
+
+    return (
+      <View
+        style={[
+          styles.externalVideoCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <View
+          style={[
+            styles.placeholderIcon,
+            { backgroundColor: colors.primary + "20" },
+          ]}
+        >
+          <Feather name="play-circle" size={30} color={colors.primary} />
+        </View>
+        <View style={styles.placeholderText}>
+          <Text style={[styles.placeholderTitle, { color: colors.foreground }]}>
+            Видео-лекция
+          </Text>
+          <Text style={[styles.placeholderSub, { color: colors.subForeground }]}>
+            {title ? `${title} — VK Видео` : "Лекция во VK Видео"}
+          </Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="link"
+          accessibilityLabel="Открыть видео во VK"
+          onPress={openVideo}
+          style={[styles.watchButton, { backgroundColor: colors.primary }]}
+        >
+          <Feather name="external-link" size={14} color="white" />
+          <Text style={styles.watchButtonText}>Смотреть</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -170,5 +216,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
+  },
+  externalVideoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  watchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 11,
+  },
+  watchButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   },
 });

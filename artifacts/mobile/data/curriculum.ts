@@ -45,7 +45,8 @@ function theoryNode(
   title: string,
   content: string,
   keyPoints: string[],
-  xpReward = 10
+  xpReward = 10,
+  videoUrl?: string
 ): LessonNode {
   return {
     id,
@@ -56,6 +57,7 @@ function theoryNode(
     theoryTitle: title,
     theoryContent: content,
     theoryKeyPoints: keyPoints,
+    ...(videoUrl ? { videoUrl } : {}),
     xpReward,
   };
 }
@@ -91,7 +93,9 @@ const chapterSections: Chapter[] = [
           "Числитель — сколько частей взяли",
           "Правильная дробь: a < b",
           "Неправильная дробь: a ≥ b",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video-56385969_456239833"
       ),
       activityNode(
         "fractions-basics",
