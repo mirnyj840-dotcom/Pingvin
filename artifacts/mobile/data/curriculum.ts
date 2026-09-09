@@ -217,7 +217,9 @@ const chapterSections: Chapter[] = [
           "a/b = (a · n)/(b · n)",
           "Сокращать можно только на общий делитель",
           "Сокращённая дробь имеет тот же результат",
-        ]
+        ],
+        10,
+        "https://vkvideo.ru/video_ext.php?oid=-24295334&id=456239090&hash=92083323c3974db4&hd=4"
       ),
       activityNode(
         "fraction-conversion",
