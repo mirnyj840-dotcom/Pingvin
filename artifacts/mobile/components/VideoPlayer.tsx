@@ -58,6 +58,35 @@ export default function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const isVkVideo =
     videoUrl.includes("vkvideo.ru") || videoUrl.includes("vk.com/video");
 
+  if (isVkVideo && Platform.OS === "web") {
+    return (
+      <View style={styles.webVideoContainer}>
+        {title && (
+          <View style={styles.titleRow}>
+            <Feather name="play-circle" size={16} color={colors.primary} />
+            <Text
+              style={[styles.titleText, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
+              {title}
+            </Text>
+          </View>
+        )}
+        <View style={styles.videoWrapper}>
+          {/* @ts-ignore — web-only iframe */}
+          <iframe
+            src={videoUrl}
+            title={title || "VK Видео"}
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
+            frameBorder="0"
+            allowFullScreen
+            style={styles.webVideoFrame}
+          />
+        </View>
+      </View>
+    );
+  }
+
   if (isVkVideo) {
     const openVideo = () => {
       void Linking.openURL(videoUrl);
@@ -176,6 +205,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     borderRadius: 14,
     overflow: "hidden",
+  },
+  webVideoFrame: {
+    width: "100%",
+    height: "100%",
+    borderWidth: 0,
   },
   placeholder: {
     flexDirection: "row",

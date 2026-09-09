@@ -95,7 +95,7 @@ const chapterSections: Chapter[] = [
           "Неправильная дробь: a ≥ b",
         ],
         10,
-        "https://vkvideo.ru/video-56385969_456239833"
+        "https://vkvideo.ru/video_ext.php?oid=-56385969&id=456239833&hash=334e91a82c6b2cd3&hd=4"
       ),
       activityNode(
         "fractions-basics",
