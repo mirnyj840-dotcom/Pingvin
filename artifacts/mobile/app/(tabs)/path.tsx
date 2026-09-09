@@ -181,7 +181,7 @@ export default function PathScreen() {
                   />
                 </View>
 
-                <View style={{ flex: 1 }}>
+                <View style={styles.chapterInfo}>
                   <Text
                     style={[
                       styles.chapterName,
@@ -391,15 +391,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  chapterInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
   chapterName: {
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
   chapterDesc: { marginTop: 2 },
-  chapterRight: { alignItems: "flex-end", gap: 6 },
+  chapterRight: {
+    width: 76,
+    alignItems: "flex-end",
+    gap: 6,
+  },
   chapterPct: { fontWeight: "800", fontFamily: "Inter_700Bold" },
   progressBarWrap: {},
-  progressDots: { flexDirection: "row", gap: 3 },
+  progressDots: {
+    maxWidth: 76,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 3,
+  },
   progressDot: { width: 6, height: 6, borderRadius: 3 },
 
   nodesWrap: {},
