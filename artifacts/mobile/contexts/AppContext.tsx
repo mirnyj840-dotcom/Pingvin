@@ -73,6 +73,9 @@ const AppContext = createContext<AppContextValue | null>(null);
 // Curriculum v4 is a new course. Legacy lesson completion must not unlock it.
 const STORAGE_KEY = "oge_app_v4";
 const LEGACY_STORAGE_KEYS = ["oge_app_v3", "oge_app_v2"];
+// Owner preview mode: unlock the whole path only in the local development build.
+// Production builds keep the normal sequential lesson progression.
+const OWNER_PREVIEW_MODE = __DEV__;
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "space",
@@ -185,6 +188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const nodeStatus = useCallback(
     (nodeId: string): "locked" | "active" | "done" => {
       if (userStats.completedNodeIds.includes(nodeId)) return "done";
+      if (OWNER_PREVIEW_MODE) return "active";
 
       let chapterIdx = -1;
       let nodeIdx = -1;
