@@ -72,7 +72,7 @@ function activityNode(
   return { id, chapterId, type, label, iconName, questions, xpReward };
 }
 
-export const chapters: Chapter[] = [
+const chapterSections: Chapter[] = [
   {
     id: "fractions-basics",
     title: "Обыкновенные дроби",
@@ -968,6 +968,22 @@ export const chapters: Chapter[] = [
         75
       ),
     ],
+  },
+];
+
+export const chapters: Chapter[] = [
+  {
+    id: "oge-task-six",
+    title: "Задание №6. Числа и вычисления",
+    description: "Одна последовательная глава: дроби, десятичные и отрицательные числа",
+    iconName: "hash",
+    color: "#4F46E5",
+    nodes: chapterSections.flatMap((section) =>
+      section.nodes.map((node) => ({
+        ...node,
+        chapterId: "oge-task-six",
+      }))
+    ),
   },
 ];
 
