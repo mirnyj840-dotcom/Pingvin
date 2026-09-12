@@ -10,6 +10,7 @@ import {
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
@@ -47,6 +48,7 @@ const AVATAR_COLORS = [
 export default function SettingsScreen() {
   const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { settings, updateSettings, resetProgress } = useApp();
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
@@ -54,13 +56,30 @@ export default function SettingsScreen() {
 
   const tap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+  const confirmReset = async () => {
+    await resetProgress();
+    router.replace("/onboarding");
+  };
+
   const handleReset = () => {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Весь прогресс, XP и стрик будут удалены. Это действие нельзя отменить."
+      );
+      if (confirmed) void confirmReset();
+      return;
+    }
+
     Alert.alert(
       "Сбросить прогресс?",
       "Весь прогресс, XP и стрик будут удалены. Это действие нельзя отменить.",
       [
         { text: "Отмена", style: "cancel" },
-        { text: "Сбросить", style: "destructive", onPress: () => resetProgress() },
+        {
+          text: "Сбросить",
+          style: "destructive",
+          onPress: () => void confirmReset(),
+        },
       ]
     );
   };
