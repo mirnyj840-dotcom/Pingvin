@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { useAppColors } from "@/hooks/useAppColors";
+import { REGISTRATION_COLORS } from "@/constants/colors";
 
 const SCRAMBLE_CHARS = "0123456789+-×÷=%";
 
@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const colors = useAppColors();
+  const colors = REGISTRATION_COLORS;
   const { completeOnboarding } = useApp();
 
   const [surname, setSurname] = useState("");
@@ -180,23 +180,13 @@ export default function OnboardingScreen() {
       >
         <View
           style={[
-            styles.outerFrame,
+            styles.card,
             {
               width: Math.min(Math.max(width - 36, 280), 320),
-              borderColor: colors.border,
-              backgroundColor: colors.background,
+              backgroundColor: colors.card,
             },
           ]}
         >
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
             <ScrambleText
               value="Добро пожаловать"
               delay={150}
@@ -247,7 +237,7 @@ export default function OnboardingScreen() {
             </View>
 
             {error ? (
-              <Text style={[styles.error, { color: colors.red }]}>{error}</Text>
+              <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
             ) : null}
 
             <View style={styles.actions}>
@@ -296,7 +286,6 @@ export default function OnboardingScreen() {
                 />
               </Pressable>
             </View>
-          </View>
         </View>
       </KeyboardAwareScrollViewCompat>
     </View>
@@ -307,7 +296,7 @@ type RegistrationInputProps = {
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
-  colors: ReturnType<typeof useAppColors>;
+  colors: typeof REGISTRATION_COLORS;
   autoComplete?: "family-name" | "given-name";
   keyboardType?: "default";
   returnKeyType?: "done";
@@ -359,14 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 18,
   },
-  outerFrame: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 10,
-  },
   card: {
-    borderWidth: 1,
-    borderRadius: 18,
     paddingHorizontal: 20,
     paddingTop: 54,
     paddingBottom: 28,

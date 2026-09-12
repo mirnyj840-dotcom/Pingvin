@@ -22,4 +22,14 @@ const colors = {
   radius: 16,
 };
 
+export const REGISTRATION_COLORS = {
+  background: "#000000",
+  card: "#000000",
+  input: "#0B0B0B",
+  foreground: "#FFFFFF",
+  mutedForeground: "rgba(255,255,255,0.48)",
+  border: "rgba(255,255,255,0.24)",
+  error: "#FF5B5B",
+} as const;
+
 export default colors;
