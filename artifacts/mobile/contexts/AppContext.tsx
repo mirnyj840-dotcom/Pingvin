@@ -26,6 +26,9 @@ export interface AppSettings {
 
 export interface UserStats {
   name: string;
+  surname: string;
+  patronymic: string;
+  groupNumber: string;
   onboardingDone: boolean;
   isLoaded: boolean;
   xp: number;
@@ -55,7 +58,15 @@ export interface LessonResult {
 interface AppContextValue {
   userStats: UserStats;
   settings: AppSettings;
-  completeOnboarding: (name: string, mascot: MascotType) => Promise<void>;
+  completeOnboarding: (
+    name: string,
+    mascot: MascotType,
+    profile?: {
+      surname: string;
+      patronymic: string;
+      groupNumber: string;
+    }
+  ) => Promise<void>;
   completeNode: (
     nodeId: string,
     correct: number,
@@ -89,6 +100,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const DEFAULT_STATS: UserStats = {
   name: "Ученик",
+  surname: "",
+  patronymic: "",
+  groupNumber: "",
   onboardingDone: false,
   isLoaded: false,
   xp: 0,
@@ -176,9 +190,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function completeOnboarding(
     name: string,
-    mascot: MascotType
+    mascot: MascotType,
+    profile?: {
+      surname: string;
+      patronymic: string;
+      groupNumber: string;
+    }
   ): Promise<void> {
-    const newStats = { ...userStats, name: name.trim(), onboardingDone: true };
+    const newStats = {
+      ...userStats,
+      name: name.trim(),
+      onboardingDone: true,
+      ...(profile
+        ? {
+            surname: profile.surname.trim(),
+            patronymic: profile.patronymic.trim(),
+            groupNumber: profile.groupNumber.trim(),
+          }
+        : {}),
+    };
     const newSettings = { ...settings, mascot };
     setUserStats(newStats);
     setSettings(newSettings);

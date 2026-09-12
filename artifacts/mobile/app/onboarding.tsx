@@ -1,458 +1,433 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
+  Keyboard,
+  Platform,
+  Pressable,
+  StyleProp,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  Platform,
+  TextStyle,
+  useWindowDimensions,
+  View,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withTiming,
-  withSpring,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Mascot, { MascotType } from "@/components/Mascot";
-import GradientButton from "@/components/GradientButton";
 import { useApp } from "@/contexts/AppContext";
-import THEMES from "@/constants/themes";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { useAppColors } from "@/hooks/useAppColors";
 
-const { width } = Dimensions.get("window");
+const SCRAMBLE_CHARS = "0123456789+-×÷=%";
 
-const MASCOTS: { type: MascotType; name: string; desc: string }[] = [
-  { type: "penguin", name: "Пингвин", desc: "Классика жанра" },
-  { type: "raccoon", name: "Енот", desc: "Хитрый и умный" },
-  { type: "bear", name: "Медведь", desc: "Сильный и надёжный" },
-];
+type ScrambleTextProps = {
+  value: string;
+  duration?: number;
+  delay?: number;
+  style?: StyleProp<TextStyle>;
+  onPress?: () => void;
+};
 
-const PAGES = [
-  {
-    title: "Готовься к ОГЭ\nкаждый день",
-    subtitle:
-      "Интерактивный курс по математике — теория, квизы и босс-битвы в стиле игры",
-    iconName: "book-open" as const,
-  },
-  {
-    title: "Зарабатывай XP\nи держи стрик",
-    subtitle:
-      "Открывай новые главы, поднимайся в лигах и получай достижения за прогресс",
-    iconName: "zap" as const,
-  },
-  {
-    title: "Выбери своего\nмаскота",
-    subtitle: "Он будет сопровождать тебя на пути к пятёрке",
-    iconName: "heart" as const,
-  },
-];
+function ScrambleText({
+  value,
+  duration = 1200,
+  delay = 0,
+  style,
+  onPress,
+}: ScrambleTextProps) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const animationToken = useRef<symbol | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-const COLORS = THEMES.space.colors;
+  const scramble = useCallback(() => {
+    const token = Symbol("scramble");
+    animationToken.current = token;
+
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+    }
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    const startAnimation = () => {
+      const startedAt = Date.now();
+
+      const frame = () => {
+        if (animationToken.current !== token) return;
+
+        const progress = Math.min(1, (Date.now() - startedAt) / duration);
+        const revealCount = Math.floor(value.length * progress);
+        const nextValue = [...value]
+          .map((character, index) => {
+            if (character === " " || index < revealCount) return character;
+            return SCRAMBLE_CHARS[
+              Math.floor(Math.random() * SCRAMBLE_CHARS.length)
+            ];
+          })
+          .join("");
+
+        setDisplayValue(nextValue);
+
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(frame);
+        } else {
+          setDisplayValue(value);
+          frameRef.current = null;
+        }
+      };
+
+      frameRef.current = requestAnimationFrame(frame);
+    };
+
+    if (delay > 0) {
+      timeoutRef.current = setTimeout(startAnimation, delay);
+    } else {
+      startAnimation();
+    }
+  }, [delay, duration, value]);
+
+  useEffect(() => {
+    scramble();
+    const interval = setInterval(scramble, 6000);
+
+    return () => {
+      clearInterval(interval);
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
+      animationToken.current = null;
+    };
+  }, [scramble]);
+
+  return (
+    <Text
+      onPress={() => {
+        scramble();
+        onPress?.();
+      }}
+      style={style}
+    >
+      {displayValue}
+    </Text>
+  );
+}
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const colors = useAppColors();
   const { completeOnboarding } = useApp();
-  const scrollRef = useRef<ScrollView>(null);
 
-  const [page, setPage] = useState(0);
-  const [selectedMascot, setSelectedMascot] = useState<MascotType>("penguin");
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState(false);
+  const [surname, setSurname] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [patronymic, setPatronymic] = useState("");
+  const [groupNumber, setGroupNumber] = useState("");
+  const [error, setError] = useState("");
   const [isFinishing, setIsFinishing] = useState(false);
 
-  const isLastPage = page === PAGES.length - 1;
-
-  const goNext = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!isLastPage) {
-      const next = page + 1;
-      setPage(next);
-      scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    } else {
-      if (!name.trim()) {
-        setNameError(true);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
-      }
-      await finish();
-    }
+  const profile = {
+    surname,
+    patronymic,
+    groupNumber,
   };
 
-  const finish = async () => {
+  const finish = async (requireForm: boolean) => {
     if (isFinishing) return;
+    Keyboard.dismiss();
+
+    if (
+      requireForm &&
+      (!surname.trim() ||
+        !firstName.trim() ||
+        !patronymic.trim() ||
+        !groupNumber.trim())
+    ) {
+      setError("Заполни все поля, чтобы зарегистрироваться");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    setError("");
     setIsFinishing(true);
-    await completeOnboarding(name.trim(), selectedMascot);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await completeOnboarding(firstName.trim() || "Ученик", "penguin", profile);
     router.replace("/(tabs)");
   };
 
   return (
     <View
       style={[
-        styles.container,
-        { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) },
+        styles.screen,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 12),
+        },
       ]}
     >
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        style={{ flex: 1 }}
-      >
-        {PAGES.map((p, idx) => (
-          <View key={idx} style={[styles.page, { width }]}>
-            {idx === 2 ? (
-              <MascotPickerPage
-                selectedMascot={selectedMascot}
-                onSelect={setSelectedMascot}
-                name={name}
-                onNameChange={(v) => {
-                  setName(v);
-                  if (v.trim()) setNameError(false);
-                }}
-                nameError={nameError}
-                title={p.title}
-                subtitle={p.subtitle}
-              />
-            ) : (
-              <IllustrationPage page={p} idx={idx} selectedMascot={selectedMascot} />
-            )}
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Dots */}
-      <View style={styles.dots}>
-        {PAGES.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: i === page ? COLORS.primary : COLORS.border,
-                width: i === page ? 24 : 8,
-              },
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* CTA */}
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: insets.bottom + 24 + (Platform.OS === "web" ? 34 : 0) },
+      <KeyboardAwareScrollViewCompat
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 20),
+          },
         ]}
+        bottomOffset={76}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {isLastPage && !name.trim() && nameError && (
-          <Animated.View style={styles.errorBanner}>
-            <Feather name="alert-circle" size={14} color="#EF4444" />
-            <Text style={styles.errorBannerText}>Введи своё имя, чтобы продолжить</Text>
-          </Animated.View>
-        )}
-        <GradientButton
-          label={isLastPage ? "Начать учиться" : "Далее"}
-          iconName={isLastPage ? "arrow-right" : "chevron-right"}
-          onPress={goNext}
-          loading={isFinishing}
-        />
-      </View>
-    </View>
-  );
-}
-
-function IllustrationPage({
-  page,
-  idx,
-  selectedMascot,
-}: {
-  page: (typeof PAGES)[0];
-  idx: number;
-  selectedMascot: MascotType;
-}) {
-  return (
-    <View style={styles.pageInner}>
-      <View style={styles.mascotWrap}>
-        <Mascot type={selectedMascot} size={160} animated />
-      </View>
-      <View style={styles.badge}>
-        <Feather name={page.iconName} size={22} color={COLORS.primary} />
-      </View>
-      <Text style={styles.title}>{page.title}</Text>
-      <Text style={styles.subtitle}>{page.subtitle}</Text>
-    </View>
-  );
-}
-
-function MascotPickerPage({
-  selectedMascot,
-  onSelect,
-  name,
-  onNameChange,
-  nameError,
-  title,
-  subtitle,
-}: {
-  selectedMascot: MascotType;
-  onSelect: (m: MascotType) => void;
-  name: string;
-  onNameChange: (v: string) => void;
-  nameError: boolean;
-  title: string;
-  subtitle: string;
-}) {
-  const shakeX = useSharedValue(0);
-
-  const shake = () => {
-    shakeX.value = withSequence(
-      withTiming(8, { duration: 60 }),
-      withTiming(-8, { duration: 60 }),
-      withTiming(8, { duration: 60 }),
-      withTiming(-8, { duration: 60 }),
-      withTiming(0, { duration: 60 })
-    );
-  };
-
-  const animatedInputStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shakeX.value }],
-  }));
-
-  React.useEffect(() => {
-    if (nameError) shake();
-  }, [nameError]);
-
-  return (
-    <View style={styles.pageInner}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
-
-      <View style={styles.mascotRow}>
-        {MASCOTS.map((m) => (
-          <TouchableOpacity
-            key={m.type}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onSelect(m.type);
-            }}
+        <View
+          style={[
+            styles.outerFrame,
+            {
+              width: Math.min(Math.max(width - 36, 280), 320),
+              borderColor: colors.border,
+              backgroundColor: colors.background,
+            },
+          ]}
+        >
+          <View
             style={[
-              styles.mascotCard,
+              styles.card,
               {
-                borderColor:
-                  selectedMascot === m.type ? COLORS.primary : COLORS.border,
-                backgroundColor:
-                  selectedMascot === m.type
-                    ? COLORS.primary + "15"
-                    : COLORS.card,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
               },
             ]}
           >
-            <Mascot type={m.type} size={64} animated={selectedMascot === m.type} />
-            <Text style={styles.mascotName}>{m.name}</Text>
-            <Text style={styles.mascotDesc}>{m.desc}</Text>
-            {selectedMascot === m.type && (
-              <View style={styles.selectedBadge}>
-                <Feather name="check" size={12} color="white" />
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+            <ScrambleText
+              value="Добро пожаловать"
+              delay={150}
+              style={[styles.title, { color: colors.foreground }]}
+            />
 
-      <View style={styles.nameWrap}>
-        <View style={styles.nameLabelRow}>
-          <Text style={styles.nameLabel}>Как тебя зовут?</Text>
-          {nameError && (
-            <Text style={styles.nameLabelError}>Обязательное поле</Text>
-          )}
-        </View>
-        <Animated.View style={animatedInputStyle}>
-          <TextInput
-            value={name}
-            onChangeText={onNameChange}
-            placeholder="Введи имя..."
-            placeholderTextColor={COLORS.mutedForeground}
-            style={[
-              styles.nameInput,
-              nameError && !name.trim() && {
-                borderColor: "#EF4444",
-                backgroundColor: "#EF444410",
-              },
-            ]}
-            maxLength={24}
-            returnKeyType="done"
-            autoCorrect={false}
-          />
-        </Animated.View>
-        {name.trim().length > 0 && (
-          <View style={styles.namePreview}>
-            <Feather name="check-circle" size={13} color="#10B981" />
-            <Text style={styles.namePreviewText}>Привет, {name.trim()}!</Text>
+            <View style={styles.form}>
+              <RegistrationInput
+                value={surname}
+                onChangeText={(value) => {
+                  setSurname(value);
+                  setError("");
+                }}
+                placeholder="Фамилия"
+                colors={colors}
+                autoComplete="family-name"
+              />
+              <RegistrationInput
+                value={firstName}
+                onChangeText={(value) => {
+                  setFirstName(value);
+                  setError("");
+                }}
+                placeholder="Имя"
+                colors={colors}
+                autoComplete="given-name"
+              />
+              <RegistrationInput
+                value={patronymic}
+                onChangeText={(value) => {
+                  setPatronymic(value);
+                  setError("");
+                }}
+                placeholder="Отчество"
+                colors={colors}
+              />
+              <RegistrationInput
+                value={groupNumber}
+                onChangeText={(value) => {
+                  setGroupNumber(value.replace(/[^0-9А-Яа-яA-Za-z-]/g, ""));
+                  setError("");
+                }}
+                placeholder="Номер группы"
+                colors={colors}
+                keyboardType="default"
+                returnKeyType="done"
+              />
+            </View>
+
+            {error ? (
+              <Text style={[styles.error, { color: colors.red }]}>{error}</Text>
+            ) : null}
+
+            <View style={styles.actions}>
+              <Pressable
+                testID="register-button"
+                accessibilityRole="button"
+                disabled={isFinishing}
+                onPress={() => finish(true)}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  {
+                    backgroundColor: colors.foreground,
+                    opacity: pressed || isFinishing ? 0.82 : 1,
+                  },
+                ]}
+              >
+                <ScrambleText
+                  value="Зарегистрироваться"
+                  delay={300}
+                  onPress={() => finish(true)}
+                  style={[
+                    styles.primaryButtonText,
+                    { color: colors.background },
+                  ]}
+                />
+              </Pressable>
+
+              <Pressable
+                testID="login-button"
+                accessibilityRole="button"
+                disabled={isFinishing}
+                onPress={() => finish(false)}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  {
+                    borderColor: colors.border,
+                    opacity: pressed || isFinishing ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <ScrambleText
+                  value="Войти"
+                  delay={450}
+                  onPress={() => finish(false)}
+                  style={[styles.secondaryButtonText, { color: colors.foreground }]}
+                />
+              </Pressable>
+            </View>
           </View>
-        )}
-      </View>
+        </View>
+      </KeyboardAwareScrollViewCompat>
     </View>
+  );
+}
+
+type RegistrationInputProps = {
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  colors: ReturnType<typeof useAppColors>;
+  autoComplete?: "family-name" | "given-name";
+  keyboardType?: "default";
+  returnKeyType?: "done";
+};
+
+function RegistrationInput({
+  value,
+  onChangeText,
+  placeholder,
+  colors,
+  autoComplete,
+  keyboardType = "default",
+  returnKeyType,
+}: RegistrationInputProps) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.mutedForeground}
+      autoCapitalize="words"
+      autoCorrect={false}
+      autoComplete={autoComplete}
+      keyboardType={keyboardType}
+      returnKeyType={returnKeyType}
+      style={[
+        styles.input,
+        {
+          color: colors.foreground,
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+        },
+      ]}
+      maxLength={32}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  page: {
+  screen: {
     flex: 1,
   },
-  pageInner: {
+  scroll: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 28,
-    paddingTop: 20,
   },
-  mascotWrap: {
-    marginBottom: 16,
-    marginTop: 24,
-  },
-  badge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.primary + "20",
+  scrollContent: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    paddingHorizontal: 18,
+  },
+  outerFrame: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 10,
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 20,
+    paddingTop: 54,
+    paddingBottom: 28,
   },
   title: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: COLORS.foreground,
-    textAlign: "center",
-    lineHeight: 38,
+    alignSelf: "center",
     fontFamily: "Inter_700Bold",
-    marginBottom: 14,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.subForeground,
+    fontSize: 20,
+    lineHeight: 26,
     textAlign: "center",
-    lineHeight: 24,
-    fontFamily: "Inter_400Regular",
+    marginBottom: 36,
   },
-  dots: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 16,
+  form: {
+    gap: 14,
   },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    gap: 10,
-  },
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#EF444415",
-    borderWidth: 1,
-    borderColor: "#EF444430",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  errorBannerText: {
-    color: "#EF4444",
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
-  mascotRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  mascotCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 2,
-    gap: 4,
-    position: "relative",
-  },
-  mascotName: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.foreground,
-    fontFamily: "Inter_700Bold",
-  },
-  mascotDesc: {
-    fontSize: 11,
-    color: COLORS.subForeground,
-    textAlign: "center",
-  },
-  selectedBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nameWrap: {
+  input: {
     width: "100%",
-    gap: 8,
-  },
-  nameLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  nameLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.subForeground,
-    fontFamily: "Inter_600SemiBold",
-  },
-  nameLabelError: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontFamily: "Inter_500Medium",
-  },
-  nameInput: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: COLORS.foreground,
+    height: 38,
+    borderWidth: 1,
+    borderRadius: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
     fontFamily: "Inter_400Regular",
+    fontSize: 14,
   },
-  namePreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  namePreviewText: {
-    fontSize: 13,
-    color: "#10B981",
+  error: {
     fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  actions: {
+    gap: 12,
+    marginTop: 164,
+  },
+  primaryButton: {
+    minHeight: 46,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  primaryButtonText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  secondaryButton: {
+    minHeight: 46,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  secondaryButtonText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
 });
