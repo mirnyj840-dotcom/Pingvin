@@ -10,7 +10,6 @@ import {
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
@@ -48,7 +47,6 @@ const AVATAR_COLORS = [
 export default function SettingsScreen() {
   const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { settings, updateSettings, resetProgress } = useApp();
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
@@ -58,7 +56,6 @@ export default function SettingsScreen() {
 
   const confirmReset = async () => {
     await resetProgress();
-    router.replace("/onboarding");
   };
 
   const handleReset = () => {
