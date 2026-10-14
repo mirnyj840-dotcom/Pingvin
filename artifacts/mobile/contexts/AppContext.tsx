@@ -340,9 +340,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function weekStreak(): boolean[] {
     const result: boolean[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    const today = new Date();
+    // Найдём понедельник текущей недели
+    const dayOfWeek = today.getDay(); // 0=Вс, 1=Пн, ..., 6=Сб
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
       result.push(userStats.weeklyDates.includes(d.toISOString().split("T")[0]));
     }
     return result;

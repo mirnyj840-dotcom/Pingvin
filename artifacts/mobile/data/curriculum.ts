@@ -986,6 +986,7 @@ const chapterSections: Chapter[] = [
 ];
 
 export const chapters: Chapter[] = [
+  // The OGE course is intentionally one chapter containing all 28 nodes.
   {
     id: "oge-task-six",
     title: "Задание №6. Числа и вычисления",

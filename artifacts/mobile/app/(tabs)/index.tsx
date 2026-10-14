@@ -93,6 +93,7 @@ function getGreeting(): string {
 }
 
 export default function HomeScreen() {
+  // This home screen is intentionally kept with the single-chapter OGE path.
   const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
