@@ -34,3 +34,9 @@ exposeLocalhost = true
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3uln8GtnXaZXyuGtwtsLlQ_KKB_1ptq"
+EXPO_PUBLIC_SUPABASE_URL = "https://bzrmjboxrsdlloovihcd.supabase.co"

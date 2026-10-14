@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import Mascot, { MascotType } from "@/components/Mascot";
 import THEMES, { ThemeId } from "@/constants/themes";
@@ -48,6 +49,7 @@ export default function SettingsScreen() {
   const { colors, fs } = useTheme();
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, resetProgress } = useApp();
+  const { session, signOut } = useAuth();
 
   const pt = insets.top + (Platform.OS === "web" ? 67 : 0);
   const pb = insets.bottom + (Platform.OS === "web" ? 34 : 0);
@@ -79,6 +81,26 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const confirmSignOut = () => {
+    const message =
+      "Прогресс останется в облаке и будет доступен после повторного входа.";
+    const leave = () => {
+      void signOut().catch(() => {
+        Alert.alert("Не удалось выйти", "Проверьте соединение и попробуйте снова.");
+      });
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm(`Выйти из аккаунта? ${message}`)) leave();
+      return;
+    }
+
+    Alert.alert("Выйти из аккаунта?", message, [
+      { text: "Отмена", style: "cancel" },
+      { text: "Выйти", style: "destructive", onPress: leave },
+    ]);
   };
 
   return (
@@ -284,6 +306,41 @@ export default function SettingsScreen() {
           <Feather name="trash-2" size={16} color={colors.red} />
           <Text style={{ color: colors.red, fontSize: fs(15), fontWeight: "600" }}>
             Сбросить прогресс
+          </Text>
+        </TouchableOpacity>
+
+        <SectionCard title="Аккаунт" iconName="user" colors={colors} fs={fs}>
+          <InfoRow
+            label="Email"
+            value={session?.user.email ?? "—"}
+            colors={colors}
+            fs={fs}
+            last
+          />
+        </SectionCard>
+
+        <TouchableOpacity
+          testID="settings-logout-button"
+          accessibilityRole="button"
+          onPress={confirmSignOut}
+          style={[
+            styles.dangerButton,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.secondary,
+              borderRadius: colors.radius,
+            },
+          ]}
+        >
+          <Feather name="log-out" size={16} color={colors.foreground} />
+          <Text
+            style={{
+              color: colors.foreground,
+              fontSize: fs(15),
+              fontWeight: "600",
+            }}
+          >
+            Выйти из аккаунта
           </Text>
         </TouchableOpacity>
       </ScrollView>

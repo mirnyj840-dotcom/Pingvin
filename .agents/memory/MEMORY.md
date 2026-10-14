@@ -1,0 +1,1 @@
+- [Expo native polyfills](expo-native-polyfills.md) — keep native-only polyfill imports out of shared modules so Expo web bundling can resolve the app.

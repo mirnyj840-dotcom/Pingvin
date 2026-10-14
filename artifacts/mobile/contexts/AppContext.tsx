@@ -3,11 +3,14 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { chapters } from "@/data/curriculum";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/utils/supabase";
 
 export type MascotType = "penguin" | "raccoon" | "bear";
 export type ThemeId = "space" | "classic" | "pink" | "dawn";
@@ -58,6 +61,9 @@ export interface LessonResult {
 interface AppContextValue {
   userStats: UserStats;
   settings: AppSettings;
+  loadedUserId: string | null;
+  syncError: string | null;
+  retrySync: () => Promise<void>;
   completeOnboarding: (
     name: string,
     mascot: MascotType,
@@ -84,6 +90,8 @@ const AppContext = createContext<AppContextValue | null>(null);
 // Curriculum v4 is a new course. Legacy lesson completion must not unlock it.
 const STORAGE_KEY = "oge_app_v4";
 const LEGACY_STORAGE_KEYS = ["oge_app_v3", "oge_app_v2"];
+const USER_STORAGE_PREFIX = `${STORAGE_KEY}:user:`;
+const LEGACY_OWNER_KEY = `${STORAGE_KEY}:supabase-owner`;
 // Owner preview mode: unlock the whole path only in the local development build.
 // Production builds keep the normal sequential lesson progression.
 const OWNER_PREVIEW_MODE = __DEV__;
@@ -120,72 +128,305 @@ const DEFAULT_STATS: UserStats = {
   totalAnswers: 0,
 };
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [userStats, setUserStats] = useState<UserStats>(DEFAULT_STATS);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+interface PersistedAppData {
+  stats: UserStats;
+  settings: AppSettings;
+  updatedAt: string | null;
+}
 
-  useEffect(() => {
-    loadData();
-  }, []);
+function getUserStorageKey(userId: string): string {
+  return `${USER_STORAGE_PREFIX}${userId}`;
+}
 
-  async function loadData() {
-    try {
-      let raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.stats) {
-          const stats = { ...DEFAULT_STATS, ...saved.stats, isLoaded: true };
-          // Migrate old theme ids
-          setUserStats(stats);
-        } else {
-          setUserStats((s) => ({ ...s, isLoaded: true }));
-        }
-        if (saved.settings) {
-          const savedSettings = { ...DEFAULT_SETTINGS, ...saved.settings };
-          // Migrate old theme ids to new ones
-          if (savedSettings.theme === "noir") savedSettings.theme = "classic";
-          if (savedSettings.theme === "nordic") savedSettings.theme = "pink";
-          setSettings(savedSettings);
-        }
-      } else {
-        // Keep the learner's identity and preferences, but start the new path
-        // with clean course progress instead of carrying over old node IDs.
-        let legacy: { stats?: Partial<UserStats>; settings?: Partial<AppSettings> } | null = null;
-        for (const legacyKey of LEGACY_STORAGE_KEYS) {
-          const legacyRaw = await AsyncStorage.getItem(legacyKey);
-          if (legacyRaw) {
-            legacy = JSON.parse(legacyRaw);
-            break;
-          }
-        }
-
-        const migratedStats: UserStats = {
-          ...DEFAULT_STATS,
-          name: legacy?.stats?.name ?? DEFAULT_STATS.name,
-          onboardingDone: legacy?.stats?.onboardingDone ?? DEFAULT_STATS.onboardingDone,
-          isLoaded: true,
-        };
-        const migratedSettings: AppSettings = {
-          ...DEFAULT_SETTINGS,
-          ...(legacy?.settings ?? {}),
-        };
-        setUserStats(migratedStats);
-        setSettings(migratedSettings);
-        await saveData(migratedStats, migratedSettings);
-        await Promise.all(LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)));
-      }
-    } catch {
-      setUserStats((s) => ({ ...s, isLoaded: true }));
-    }
+function parsePersistedAppData(
+  value: unknown,
+  updatedAtOverride?: unknown
+): PersistedAppData | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const rawStats = record.stats;
+  const rawSettings = record.settings;
+  if (
+    !rawStats ||
+    typeof rawStats !== "object" ||
+    !rawSettings ||
+    typeof rawSettings !== "object"
+  ) {
+    return null;
   }
 
+  const stats = {
+    ...DEFAULT_STATS,
+    ...(rawStats as Partial<UserStats>),
+    isLoaded: false,
+  };
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    ...(rawSettings as Partial<AppSettings>),
+  };
+  if (settings.theme === ("noir" as ThemeId)) settings.theme = "classic";
+  if (settings.theme === ("nordic" as ThemeId)) settings.theme = "pink";
+
+  const savedAt =
+    typeof updatedAtOverride === "string"
+      ? updatedAtOverride
+      : typeof record.updatedAt === "string"
+        ? record.updatedAt
+        : null;
+
+  return { stats, settings, updatedAt: savedAt };
+}
+
+function createPersistedAppData(
+  stats: UserStats,
+  settings: AppSettings,
+  updatedAt: string | null = new Date().toISOString()
+): PersistedAppData {
+  const { isLoaded: _isLoaded, ...savedStats } = stats;
+  return {
+    stats: { ...savedStats, isLoaded: false },
+    settings,
+    updatedAt,
+  };
+}
+
+async function readStoredAppData(key: string): Promise<PersistedAppData | null> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? parsePersistedAppData(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readLegacyAppData(): Promise<PersistedAppData | null> {
+  for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
+    const saved = await readStoredAppData(key);
+    if (saved) return saved;
+  }
+  return null;
+}
+
+async function claimLegacyAppData(
+  userId: string
+): Promise<PersistedAppData | null> {
+  const claimedBy = await AsyncStorage.getItem(LEGACY_OWNER_KEY);
+  if (claimedBy) return null;
+
+  const legacyData = await readLegacyAppData();
+  if (!legacyData) return null;
+
+  await AsyncStorage.setItem(
+    getUserStorageKey(userId),
+    JSON.stringify(legacyData)
+  );
+  await AsyncStorage.setItem(LEGACY_OWNER_KEY, userId);
+  return legacyData;
+}
+
+async function writeRemoteAppData(
+  userId: string,
+  appData: PersistedAppData
+): Promise<string> {
+  const updatedAt = appData.updatedAt ?? new Date().toISOString();
+  const { data, error } = await supabase
+    .from("student_app_state")
+    .upsert(
+      {
+        user_id: userId,
+        state: {
+          version: 1,
+          stats: appData.stats,
+          settings: appData.settings,
+        },
+        updated_at: updatedAt,
+      },
+      { onConflict: "user_id" }
+    )
+    .select("updated_at")
+    .single();
+
+  if (error) throw error;
+  return typeof data.updated_at === "string" ? data.updated_at : updatedAt;
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const { session, isLoading: authIsLoading } = useAuth();
+  const [userStats, setUserStats] = useState<UserStats>(DEFAULT_STATS);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const userId = session?.user.id ?? null;
+
+  useEffect(() => {
+    if (authIsLoading) return;
+
+    let isCurrent = true;
+    setUserStats((current) => ({ ...current, isLoaded: false }));
+    setLoadedUserId(null);
+    setSyncError(null);
+
+    const loadData = async () => {
+      let loadedData: PersistedAppData = {
+        stats: DEFAULT_STATS,
+        settings: DEFAULT_SETTINGS,
+        updatedAt: null,
+      };
+
+      try {
+        if (!userId) {
+          loadedData = (await readLegacyAppData()) ?? loadedData;
+        } else {
+          const userKey = getUserStorageKey(userId);
+          const localData = await readStoredAppData(userKey);
+          const { data: remoteRow, error } = await supabase
+            .from("student_app_state")
+            .select("state, updated_at")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (error) {
+            const claimedLegacyData = localData
+              ? null
+              : await claimLegacyAppData(userId);
+            loadedData = localData ?? claimedLegacyData ?? loadedData;
+            if (isCurrent) {
+              setSyncError(
+                "Облачные данные пока недоступны. Проверьте настройку Supabase; изменения остаются на устройстве."
+              );
+            }
+          } else if (remoteRow) {
+            const remoteData = parsePersistedAppData(
+              remoteRow.state,
+              remoteRow.updated_at
+            );
+            if (!remoteData) {
+              loadedData = localData ?? loadedData;
+              if (isCurrent) {
+                setSyncError(
+                  "Не удалось прочитать облачный профиль. Данные на устройстве сохранены."
+                );
+              }
+            } else {
+              const localTime = localData?.updatedAt
+                ? Date.parse(localData.updatedAt)
+                : 0;
+              const remoteTime = remoteData.updatedAt
+                ? Date.parse(remoteData.updatedAt)
+                : 0;
+
+              if (localData && localTime > remoteTime) {
+                loadedData = localData;
+                try {
+                  const savedAt = await writeRemoteAppData(userId, localData);
+                  loadedData = { ...localData, updatedAt: savedAt };
+                  await AsyncStorage.setItem(
+                    userKey,
+                    JSON.stringify(loadedData)
+                  );
+                  await AsyncStorage.setItem(LEGACY_OWNER_KEY, userId);
+                } catch {
+                  if (isCurrent) {
+                    setSyncError(
+                      "Не удалось синхронизировать изменения. Они сохранены на устройстве."
+                    );
+                  }
+                }
+              } else {
+                loadedData = remoteData;
+                await AsyncStorage.setItem(
+                  userKey,
+                  JSON.stringify(remoteData)
+                );
+                if (isCurrent) setSyncError(null);
+              }
+            }
+          } else {
+            const claimedLegacyData = localData
+              ? null
+              : await claimLegacyAppData(userId);
+            loadedData = localData ?? claimedLegacyData ?? loadedData;
+            if (localData || claimedLegacyData) {
+              try {
+                const savedAt = await writeRemoteAppData(userId, loadedData);
+                loadedData = { ...loadedData, updatedAt: savedAt };
+                await AsyncStorage.setItem(
+                  userKey,
+                  JSON.stringify(loadedData)
+                );
+                await AsyncStorage.setItem(LEGACY_OWNER_KEY, userId);
+                if (isCurrent) setSyncError(null);
+              } catch {
+                if (isCurrent) {
+                  setSyncError(
+                    "Не удалось загрузить данные в облако. Они сохранены на устройстве."
+                  );
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        if (userId) {
+          loadedData =
+            (await readStoredAppData(getUserStorageKey(userId))) ??
+            loadedData;
+          if (isCurrent) {
+            setSyncError(
+              "Не удалось загрузить данные из Supabase. Локальная копия сохранена."
+            );
+          }
+        }
+      }
+
+      if (!isCurrent) return;
+      setUserStats({ ...loadedData.stats, isLoaded: true });
+      setSettings(loadedData.settings);
+      setLoadedUserId(userId);
+    };
+
+    void loadData();
+    return () => {
+      isCurrent = false;
+    };
+  }, [authIsLoading, userId]);
+
   async function saveData(stats: UserStats, sett: AppSettings) {
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ stats, settings: sett })
-      );
-    } catch {}
+    const operation = saveQueue.current.then(async () => {
+      const data = createPersistedAppData(stats, sett);
+      const key = userId ? getUserStorageKey(userId) : STORAGE_KEY;
+
+      try {
+        await AsyncStorage.setItem(key, JSON.stringify(data));
+      } catch {
+        if (userId) {
+          setSyncError("Не удалось сохранить данные на устройстве.");
+        }
+        return;
+      }
+
+      if (!userId) return;
+
+      try {
+        const savedAt = await writeRemoteAppData(userId, data);
+        const savedData = { ...data, updatedAt: savedAt };
+        await AsyncStorage.setItem(key, JSON.stringify(savedData));
+        await AsyncStorage.setItem(LEGACY_OWNER_KEY, userId);
+        setSyncError(null);
+      } catch {
+        setSyncError(
+          "Не удалось синхронизировать данные. Они сохранены на устройстве; нажмите «Повторить»."
+        );
+      }
+    });
+
+    saveQueue.current = operation.catch(() => undefined);
+    await operation;
+  }
+
+  async function retrySync(): Promise<void> {
+    await saveData(userStats, settings);
   }
 
   async function completeOnboarding(
@@ -368,8 +609,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const newStats = { ...DEFAULT_STATS, isLoaded: true };
     setUserStats(newStats);
     setSettings(DEFAULT_SETTINGS);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem("oge_app_v2");
+    await saveData(newStats, DEFAULT_SETTINGS);
   }
 
   return (
@@ -377,6 +617,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         userStats,
         settings,
+        loadedUserId,
+        syncError,
+        retrySync,
         completeOnboarding,
         completeNode,
         updateSettings,

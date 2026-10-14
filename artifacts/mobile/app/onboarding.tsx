@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { REGISTRATION_COLORS } from "@/constants/colors";
 
@@ -119,6 +120,7 @@ export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
   const colors = REGISTRATION_COLORS;
   const { completeOnboarding } = useApp();
+  const { signOut } = useAuth();
 
   const [surname, setSurname] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -154,6 +156,20 @@ export default function OnboardingScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await completeOnboarding(firstName.trim() || "Ученик", "penguin", profile);
     router.replace("/(tabs)");
+  };
+
+  const leaveAccount = async () => {
+    if (isFinishing) return;
+    setIsFinishing(true);
+    setError("");
+    try {
+      await signOut();
+      router.replace("/auth");
+    } catch {
+      setError("Не удалось выйти из аккаунта. Попробуйте ещё раз.");
+    } finally {
+      setIsFinishing(false);
+    }
   };
 
   return (
@@ -266,10 +282,10 @@ export default function OnboardingScreen() {
               </Pressable>
 
               <Pressable
-                testID="login-button"
+                testID="logout-button"
                 accessibilityRole="button"
                 disabled={isFinishing}
-                onPress={() => finish(false)}
+                onPress={() => void leaveAccount()}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   {
@@ -279,9 +295,9 @@ export default function OnboardingScreen() {
                 ]}
               >
                 <ScrambleText
-                  value="Войти"
+                  value="Выйти из аккаунта"
                   delay={450}
-                  onPress={() => finish(false)}
+                  onPress={() => void leaveAccount()}
                   style={[styles.secondaryButtonText, { color: colors.foreground }]}
                 />
               </Pressable>
