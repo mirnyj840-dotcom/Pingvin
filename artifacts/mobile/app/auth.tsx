@@ -16,7 +16,7 @@ import ScrambleText from "@/components/ScrambleText";
 import { REGISTRATION_COLORS } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
-type AuthMode = "signIn" | "signUp";
+type AuthMode = "signIn" | "signUp" | "recover";
 
 function getAuthErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -41,7 +41,7 @@ function getAuthErrorMessage(error: unknown): string {
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, sendPasswordReset } = useAuth();
   const colors = REGISTRATION_COLORS;
 
   const [mode, setMode] = useState<AuthMode>("signUp");
@@ -62,7 +62,7 @@ export default function AuthScreen() {
       setMessage("");
       return;
     }
-    if (!password) {
+    if (mode !== "recover" && !password) {
       setError("Введите пароль.");
       setMessage("");
       return;
@@ -77,7 +77,12 @@ export default function AuthScreen() {
     setMessage("");
     setIsSubmitting(true);
     try {
-      if (mode === "signIn") {
+      if (mode === "recover") {
+        await sendPasswordReset(normalizedEmail);
+        setMessage(
+          "Если аккаунт с этим email существует, мы отправили ссылку для восстановления."
+        );
+      } else if (mode === "signIn") {
         await signIn(normalizedEmail, password);
       } else {
         const { requiresEmailConfirmation } = await signUp(
@@ -133,14 +138,22 @@ export default function AuthScreen() {
           ]}
         >
           <ScrambleText
-            value={mode === "signUp" ? "Создать аккаунт" : "Вход"}
+            value={
+              mode === "recover"
+                ? "Восстановить пароль"
+                : mode === "signUp"
+                  ? "Создать аккаунт"
+                  : "Вход"
+            }
             delay={150}
             style={[styles.title, { color: colors.foreground }]}
           />
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {mode === "signUp"
-              ? "После входа заполните профиль ученика и начните обучение."
-              : "Войдите, чтобы открыть свой профиль и прогресс."}
+            {mode === "recover"
+              ? "Укажите email от аккаунта — мы отправим ссылку для смены пароля."
+              : mode === "signUp"
+                ? "После входа заполните профиль ученика и начните обучение."
+                : "Войдите, чтобы открыть свой профиль и прогресс."}
           </Text>
 
           <View style={styles.form}>
@@ -169,55 +182,74 @@ export default function AuthScreen() {
                 },
               ]}
             />
-            <View style={styles.passwordField}>
-              <TextInput
-                testID="auth-password-input"
-                value={password}
-                onChangeText={(value) => {
-                  setPassword(value);
-                  setError("");
-                }}
-                placeholder="Пароль"
-                placeholderTextColor={colors.mutedForeground}
-                secureTextEntry={!isPasswordVisible}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete={mode === "signUp" ? "new-password" : "password"}
-                textContentType={
-                  mode === "signUp" ? "newPassword" : "password"
-                }
-                keyboardAppearance="dark"
-                returnKeyType="done"
-                onSubmitEditing={() => void submit()}
-                style={[
-                  styles.input,
-                  styles.passwordInput,
-                  {
-                    color: colors.foreground,
-                    backgroundColor: colors.input,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-              <Pressable
-                testID="auth-toggle-password-visibility"
-                accessibilityRole="button"
-                accessibilityLabel={
-                  isPasswordVisible ? "Скрыть пароль" : "Показать пароль"
-                }
-                accessibilityState={{ selected: isPasswordVisible }}
-                hitSlop={8}
-                onPress={() => setIsPasswordVisible((visible) => !visible)}
-                style={styles.passwordVisibilityButton}
-              >
-                <Feather
-                  name={isPasswordVisible ? "eye-off" : "eye"}
-                  size={18}
-                  color={colors.mutedForeground}
+            {mode !== "recover" ? (
+              <View style={styles.passwordField}>
+                <TextInput
+                  testID="auth-password-input"
+                  value={password}
+                  onChangeText={(value) => {
+                    setPassword(value);
+                    setError("");
+                  }}
+                  placeholder="Пароль"
+                  placeholderTextColor={colors.mutedForeground}
+                  secureTextEntry={!isPasswordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete={mode === "signUp" ? "new-password" : "password"}
+                  textContentType={
+                    mode === "signUp" ? "newPassword" : "password"
+                  }
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={() => void submit()}
+                  style={[
+                    styles.input,
+                    styles.passwordInput,
+                    {
+                      color: colors.foreground,
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    },
+                  ]}
                 />
-              </Pressable>
-            </View>
+                <Pressable
+                  testID="auth-toggle-password-visibility"
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isPasswordVisible ? "Скрыть пароль" : "Показать пароль"
+                  }
+                  accessibilityState={{ selected: isPasswordVisible }}
+                  hitSlop={8}
+                  onPress={() => setIsPasswordVisible((visible) => !visible)}
+                  style={styles.passwordVisibilityButton}
+                >
+                  <Feather
+                    name={isPasswordVisible ? "eye-off" : "eye"}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              </View>
+            ) : null}
           </View>
+          {mode === "signIn" ? (
+            <Pressable
+              testID="forgot-password-button"
+              accessibilityRole="button"
+              onPress={() => changeMode("recover")}
+              style={styles.forgotPasswordButton}
+            >
+              <Text
+                style={[
+                  styles.forgotPasswordText,
+                  { color: colors.mutedForeground },
+                ]}
+              >
+                Забыли пароль?
+              </Text>
+            </Pressable>
+          ) : null}
 
           {message ? (
             <Text
@@ -236,9 +268,11 @@ export default function AuthScreen() {
             </Text>
           ) : null}
 
-          <Text style={[styles.cloudNote, { color: colors.mutedForeground }]}>
-            Профиль и учебный прогресс будут синхронизироваться с облаком.
-          </Text>
+          {mode !== "recover" ? (
+            <Text style={[styles.cloudNote, { color: colors.mutedForeground }]}>
+              Профиль и учебный прогресс будут синхронизироваться с облаком.
+            </Text>
+          ) : null}
 
           <View style={styles.actions}>
             <Pressable
@@ -257,10 +291,14 @@ export default function AuthScreen() {
               <ScrambleText
                 value={
                   isSubmitting
-                    ? "Подождите…"
-                    : mode === "signUp"
-                      ? "Создать аккаунт"
-                      : "Войти"
+                    ? mode === "recover"
+                      ? "Отправляем…"
+                      : "Подождите…"
+                    : mode === "recover"
+                      ? "Отправить ссылку"
+                      : mode === "signUp"
+                        ? "Создать аккаунт"
+                        : "Войти"
                 }
                 delay={300}
                 style={[
@@ -273,9 +311,15 @@ export default function AuthScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={isSubmitting}
-              onPress={() =>
-                changeMode(mode === "signUp" ? "signIn" : "signUp")
-              }
+                onPress={() =>
+                  changeMode(
+                    mode === "recover"
+                      ? "signIn"
+                      : mode === "signUp"
+                        ? "signIn"
+                        : "signUp"
+                  )
+                }
               style={({ pressed }) => [
                 styles.secondaryButton,
                 {
@@ -286,9 +330,11 @@ export default function AuthScreen() {
             >
               <ScrambleText
                 value={
-                  mode === "signUp"
-                    ? "Уже есть аккаунт? Войти"
-                    : "Создать аккаунт"
+                  mode === "recover"
+                    ? "Назад ко входу"
+                    : mode === "signUp"
+                      ? "Уже есть аккаунт? Войти"
+                      : "Создать аккаунт"
                 }
                 delay={450}
                 style={[
@@ -364,6 +410,15 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+  },
+  forgotPasswordButton: {
+    alignSelf: "flex-end",
+    marginTop: 10,
+    paddingVertical: 4,
+  },
+  forgotPasswordText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
   },
   message: {
     fontFamily: "Inter_500Medium",

@@ -38,6 +38,8 @@ function RootLayoutNav() {
     if (authIsLoading) return;
     const inAuth = segments[0] === "auth";
     const inOnboarding = segments[0] === "onboarding";
+    const inPasswordRecovery = segments[0] === "reset-password";
+    if (inPasswordRecovery) return;
     if (!authenticatedUserId) {
       if (!inAuth) router.replace("/auth");
       return;
@@ -64,6 +66,10 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="reset-password"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="lesson/[nodeId]"
