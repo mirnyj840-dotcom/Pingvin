@@ -8,8 +8,16 @@ import React, {
   type ReactNode,
 } from "react";
 import * as Linking from "expo-linking";
+import { Platform } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase";
+
+function getPasswordResetRedirectUrl() {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return new URL("/reset-password", window.location.origin).toString();
+  }
+  return Linking.createURL("reset-password");
+}
 
 interface AuthContextValue {
   session: Session | null;
@@ -85,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sendPasswordReset = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
-      { redirectTo: Linking.createURL("reset-password") }
+      { redirectTo: getPasswordResetRedirectUrl() }
     );
     if (error) throw error;
   }, []);
