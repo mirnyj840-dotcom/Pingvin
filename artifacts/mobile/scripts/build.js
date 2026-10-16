@@ -1,10 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
+const net = require("net");
 const { Readable } = require("stream");
 const { pipeline } = require("stream/promises");
 
 let metroProcess = null;
+let webBuildProcess = null;
+let metroPort = null;
 
 const projectRoot = path.resolve(__dirname, "..");
 
@@ -27,6 +30,9 @@ function exitWithError(message) {
   if (metroProcess) {
     metroProcess.kill();
   }
+  if (webBuildProcess) {
+    webBuildProcess.kill();
+  }
   process.exit(1);
 }
 
@@ -35,6 +41,10 @@ function setupSignalHandlers() {
     if (metroProcess) {
       console.log("Cleaning up Metro process...");
       metroProcess.kill();
+    }
+    if (webBuildProcess) {
+      console.log("Cleaning up web export process...");
+      webBuildProcess.kill();
     }
     process.exit(0);
   };
@@ -113,8 +123,12 @@ function clearMetroCache() {
 }
 
 async function checkMetroHealth() {
+  if (!metroPort) {
+    return false;
+  }
+
   try {
-    const response = await fetch("http://localhost:8081/status", {
+    const response = await fetch(`http://localhost:${metroPort}/status`, {
       signal: AbortSignal.timeout(5000),
     });
     return response.ok;
@@ -123,11 +137,141 @@ async function checkMetroHealth() {
   }
 }
 
+function findAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        reject(new Error("Could not determine an available Metro port"));
+        return;
+      }
+
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(address.port);
+      });
+    });
+  });
+}
+
+function getMetroBaseUrl() {
+  if (!metroPort) {
+    throw new Error("Metro port has not been assigned");
+  }
+  return `http://localhost:${metroPort}`;
+}
+
 function getExpoPublicReplId() {
   return process.env.REPL_ID || process.env.EXPO_PUBLIC_REPL_ID;
 }
 
+function injectPwaMetadata() {
+  const indexPath = path.join(
+    projectRoot,
+    "static-build",
+    "web",
+    "index.html",
+  );
+  let html = fs.readFileSync(indexPath, "utf-8");
+  html = html.replace(/<html lang="[^"]*">/, '<html lang="ru">');
+  html = html.replace(
+    /<meta name="viewport" content="[^"]*" \/>/,
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />',
+  );
+
+  if (!html.includes('rel="manifest"')) {
+    const pwaTags = [
+      '<meta name="theme-color" content="#0F0F1A" />',
+      '<meta name="description" content="Пингвин ОГЭ — приложение для подготовки к экзамену по математике." />',
+      '<meta name="apple-mobile-web-app-capable" content="yes" />',
+      '<meta name="apple-mobile-web-app-title" content="Пингвин ОГЭ" />',
+      '<meta name="apple-mobile-web-app-status-bar-style" content="default" />',
+      '<link rel="manifest" href="/manifest.json" />',
+      '<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />',
+    ].join("\n    ");
+    html = html.replace("</head>", `    ${pwaTags}\n  </head>`);
+  }
+
+  fs.writeFileSync(indexPath, html);
+  console.log("Added PWA metadata to web entry page");
+}
+
+function exportWebApp(domain, expoPublicReplId) {
+  console.log("Exporting the installable web app...");
+
+  return new Promise((resolve, reject) => {
+    const env = {
+      ...process.env,
+      EXPO_PUBLIC_DOMAIN: domain,
+    };
+    if (expoPublicReplId) {
+      env.EXPO_PUBLIC_REPL_ID = expoPublicReplId;
+    }
+
+    webBuildProcess = spawn(
+      "pnpm",
+      [
+        "exec",
+        "expo",
+        "export",
+        "--platform",
+        "web",
+        "--output-dir",
+        path.join(projectRoot, "static-build", "web"),
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd: projectRoot,
+        env,
+      },
+    );
+
+    webBuildProcess.stdout.on("data", (data) => {
+      const output = data.toString().trim();
+      if (output) console.log(`[Web export] ${output}`);
+    });
+    webBuildProcess.stderr.on("data", (data) => {
+      const output = data.toString().trim();
+      if (output) console.error(`[Web export] ${output}`);
+    });
+    webBuildProcess.on("error", (error) => {
+      webBuildProcess = null;
+      reject(error);
+    });
+    webBuildProcess.on("close", (code) => {
+      webBuildProcess = null;
+      if (code !== 0) {
+        reject(new Error(`Expo web export failed with exit code ${code}`));
+        return;
+      }
+
+      const webIndex = path.join(
+        projectRoot,
+        "static-build",
+        "web",
+        "index.html",
+      );
+      if (!fs.existsSync(webIndex)) {
+        reject(new Error("Expo web export completed without creating index.html"));
+        return;
+      }
+      injectPwaMetadata();
+      resolve();
+    });
+  });
+}
+
 async function startMetro(expoPublicDomain, expoPublicReplId) {
+  metroPort = await findAvailablePort();
+  console.log(`Using local Metro port ${metroPort}`);
+
   const isRunning = await checkMetroHealth();
   if (isRunning) {
     console.log("Metro already running");
@@ -155,6 +299,8 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
       "--no-dev",
       "--minify",
       "--localhost",
+      "--port",
+      String(metroPort),
     ],
     {
       stdio: ["ignore", "pipe", "pipe"],
@@ -230,7 +376,7 @@ async function downloadFile(url, outputPath) {
 async function downloadBundle(platform, timestamp) {
   const entryPath = path.resolve(projectRoot, "node_modules", "expo-router", "entry");
   const bundlePath = path.relative(workspaceRoot, entryPath);
-  const url = new URL(`http://localhost:8081/${bundlePath}.bundle`);
+  const url = new URL(`${getMetroBaseUrl()}/${bundlePath}.bundle`);
   url.searchParams.set("platform", platform);
   url.searchParams.set("dev", "false");
   url.searchParams.set("hot", "false");
@@ -258,7 +404,7 @@ async function downloadManifest(platform) {
 
   try {
     console.log(`Fetching ${platform} manifest...`);
-    const response = await fetch("http://localhost:8081/manifest", {
+    const response = await fetch(`${getMetroBaseUrl()}/manifest`, {
       headers: { "expo-platform": platform },
       signal: controller.signal,
     });
@@ -326,7 +472,7 @@ function extractAssets(timestamp) {
       const originalPath = match[1];
       const filename = match[3] + "." + match[4];
 
-      const tempUrl = new URL(`http://localhost:8081${originalPath}`);
+      const tempUrl = new URL(`${getMetroBaseUrl()}${originalPath}`);
       const unstablePath = tempUrl.searchParams.get("unstable_path");
 
       if (!unstablePath) {
@@ -368,7 +514,7 @@ async function downloadAssets(assets, timestamp) {
   const failures = [];
 
   const downloadPromises = assets.map(async (asset) => {
-    const tempUrl = new URL(`http://localhost:8081${asset.originalPath}`);
+    const tempUrl = new URL(`${getMetroBaseUrl()}${asset.originalPath}`);
     const unstablePath = tempUrl.searchParams.get("unstable_path");
 
     if (!unstablePath) {
@@ -441,7 +587,7 @@ function updateBundleUrls(timestamp, baseUrl) {
     bundle = bundle.replace(
       /httpServerLocation:"(\/[^"]+)"/g,
       (_match, capturedPath) => {
-        const tempUrl = new URL(`http://localhost:8081${capturedPath}`);
+        const tempUrl = new URL(`${getMetroBaseUrl()}${capturedPath}`);
         const unstablePath = tempUrl.searchParams.get("unstable_path");
 
         if (!unstablePath) {
@@ -517,6 +663,8 @@ async function main() {
 
   prepareDirectories(timestamp);
   clearMetroCache();
+  await exportWebApp(domain, expoPublicReplId);
+  clearMetroCache();
 
   await startMetro(domain, expoPublicReplId);
 
@@ -568,6 +716,9 @@ main().catch((error) => {
   console.error("Build failed:", error.message);
   if (metroProcess) {
     metroProcess.kill();
+  }
+  if (webBuildProcess) {
+    webBuildProcess.kill();
   }
   process.exit(1);
 });
