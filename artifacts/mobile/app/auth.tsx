@@ -12,6 +12,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import ScrambleText from "@/components/ScrambleText";
 import { REGISTRATION_COLORS } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -131,9 +132,11 @@ export default function AuthScreen() {
             { width: Math.min(Math.max(width - 36, 280), 360) },
           ]}
         >
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {mode === "signUp" ? "Создать аккаунт" : "Вход"}
-          </Text>
+          <ScrambleText
+            value={mode === "signUp" ? "Создать аккаунт" : "Вход"}
+            delay={150}
+            style={[styles.title, { color: colors.foreground }]}
+          />
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {mode === "signUp"
               ? "После входа заполните профиль ученика и начните обучение."
@@ -251,13 +254,20 @@ export default function AuthScreen() {
                 },
               ]}
             >
-              <Text style={[styles.primaryButtonText, { color: colors.background }]}>
-                {isSubmitting
-                  ? "Подождите…"
-                  : mode === "signUp"
-                    ? "Создать аккаунт"
-                    : "Войти"}
-              </Text>
+              <ScrambleText
+                value={
+                  isSubmitting
+                    ? "Подождите…"
+                    : mode === "signUp"
+                      ? "Создать аккаунт"
+                      : "Войти"
+                }
+                delay={300}
+                style={[
+                  styles.primaryButtonText,
+                  { color: colors.background },
+                ]}
+              />
             </Pressable>
 
             <Pressable
@@ -274,11 +284,18 @@ export default function AuthScreen() {
                 },
               ]}
             >
-              <Text
-                style={[styles.secondaryButtonText, { color: colors.foreground }]}
-              >
-                {mode === "signUp" ? "Уже есть аккаунт? Войти" : "Создать аккаунт"}
-              </Text>
+              <ScrambleText
+                value={
+                  mode === "signUp"
+                    ? "Уже есть аккаунт? Войти"
+                    : "Создать аккаунт"
+                }
+                delay={450}
+                style={[
+                  styles.secondaryButtonText,
+                  { color: colors.foreground },
+                ]}
+              />
             </Pressable>
           </View>
         </View>
