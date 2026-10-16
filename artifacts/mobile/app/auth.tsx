@@ -9,6 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { REGISTRATION_COLORS } from "@/constants/colors";
@@ -45,6 +46,7 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<AuthMode>("signUp");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,34 +166,54 @@ export default function AuthScreen() {
                 },
               ]}
             />
-            <TextInput
-              testID="auth-password-input"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                setError("");
-              }}
-              placeholder="Пароль"
-              placeholderTextColor={colors.mutedForeground}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={mode === "signUp" ? "new-password" : "password"}
-              textContentType={
-                mode === "signUp" ? "newPassword" : "password"
-              }
-              keyboardAppearance="dark"
-              returnKeyType="done"
-              onSubmitEditing={() => void submit()}
-              style={[
-                styles.input,
-                {
-                  color: colors.foreground,
-                  backgroundColor: colors.input,
-                  borderColor: colors.border,
-                },
-              ]}
-            />
+            <View style={styles.passwordField}>
+              <TextInput
+                testID="auth-password-input"
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  setError("");
+                }}
+                placeholder="Пароль"
+                placeholderTextColor={colors.mutedForeground}
+                secureTextEntry={!isPasswordVisible}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete={mode === "signUp" ? "new-password" : "password"}
+                textContentType={
+                  mode === "signUp" ? "newPassword" : "password"
+                }
+                keyboardAppearance="dark"
+                returnKeyType="done"
+                onSubmitEditing={() => void submit()}
+                style={[
+                  styles.input,
+                  styles.passwordInput,
+                  {
+                    color: colors.foreground,
+                    backgroundColor: colors.input,
+                    borderColor: colors.border,
+                  },
+                ]}
+              />
+              <Pressable
+                testID="auth-toggle-password-visibility"
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isPasswordVisible ? "Скрыть пароль" : "Показать пароль"
+                }
+                accessibilityState={{ selected: isPasswordVisible }}
+                hitSlop={8}
+                onPress={() => setIsPasswordVisible((visible) => !visible)}
+                style={styles.passwordVisibilityButton}
+              >
+                <Feather
+                  name={isPasswordVisible ? "eye-off" : "eye"}
+                  size={18}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
           </View>
 
           {message ? (
@@ -308,6 +330,23 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
+  },
+  passwordField: {
+    position: "relative",
+    width: "100%",
+    height: 46,
+  },
+  passwordInput: {
+    paddingRight: 48,
+  },
+  passwordVisibilityButton: {
+    position: "absolute",
+    top: 1,
+    right: 1,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   message: {
     fontFamily: "Inter_500Medium",
