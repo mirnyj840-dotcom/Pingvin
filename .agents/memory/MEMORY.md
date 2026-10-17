@@ -1,1 +1,2 @@
 - [Expo native polyfills](expo-native-polyfills.md) — keep native-only polyfill imports out of shared modules so Expo web bundling can resolve the app.
+- [Expo web/PWA builds](expo-web-pwa-builds.md) — authenticated Expo apps should avoid browser-storage access during static prerendering and avoid assuming Metro owns port 8081.
